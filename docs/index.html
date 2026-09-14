@@ -91,6 +91,15 @@ body{
 a{color:var(--accent-ink)}
 button{font:inherit; color:inherit; cursor:pointer}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+/* Invisível até receber o foco, que é o comportamento esperado de um salto de
+   conteúdo: não ocupa espaço para quem usa mouse, aparece para quem usa Tab. */
+.pula{
+  position:absolute; left:-9999px; top:0; z-index:100;
+  background:var(--accent); color:#fff; border:0;
+  padding:12px 18px; font-size:.88rem; font-weight:600;
+}
+.pula:focus{left:8px; top:8px}
+#conteudo:focus{outline:none}
 @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
 
 /* ---------- cabeçalho ---------- */
@@ -768,6 +777,11 @@ button.tag[aria-expanded="true"]::after{content:"×"; opacity:1; color:rgba(255,
 }
 .cmp-cell ul{margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:13px}
 .cmp-empty{font-family:var(--mono); font-size:.7rem; color:var(--ink-3)}
+.cmp-arrasta{
+  display:none; margin:0 0 9px; font-family:var(--mono); font-size:.66rem;
+  letter-spacing:.05em; color:var(--ink-3);
+}
+@media (max-width:780px){ .cmp-arrasta{display:block} }
 
 /* ---------- buscar ---------- */
 .filters{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:8px}
@@ -842,6 +856,12 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
 }
 </style>
 
+<!-- Primeira parada do Tab. Sem ela, quem navega por teclado atravessa as seis
+     abas e, na de deputados, as 114 paradas da lista antes de alcançar qualquer
+     coisa. Não pode ser link com #âncora: o endereço aqui carrega o estado da
+     página, e um #conteudo faria a plataforma trocar de aba sozinha. -->
+<button class="pula" id="pular">Pular para o conteúdo</button>
+
 <header class="top">
   <div class="wrap top-in">
     <div class="brand">
@@ -858,21 +878,25 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
 
 <nav>
   <div class="wrap">
-    <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-panel="teste">Teste de afinidade</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="comparar">Comparar</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="buscar">Buscar por tema</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="mapa">Mapa de temas</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="deputados">Deputados</button>
-      <button class="tab" role="tab" aria-selected="false" data-panel="metodologia">Metodologia</button>
+    <!-- role="tablist" promete navegação por seta a quem usa leitor de tela.
+         A promessa não estava sendo cumprida: só o Tab andava, uma aba por vez,
+         junto com o resto da página. Agora ← → Home End percorrem, e só a aba
+         ativa fica no Tab (tabindex de rodízio), como manda o padrão. -->
+    <div class="tabs" role="tablist" aria-label="Seções da plataforma">
+      <button class="tab" role="tab" id="tab-teste"       aria-controls="p-teste"       aria-selected="true"  tabindex="0"  data-panel="teste">Teste de afinidade</button>
+      <button class="tab" role="tab" id="tab-comparar"    aria-controls="p-comparar"    aria-selected="false" tabindex="-1" data-panel="comparar">Comparar</button>
+      <button class="tab" role="tab" id="tab-buscar"      aria-controls="p-buscar"      aria-selected="false" tabindex="-1" data-panel="buscar">Buscar por tema</button>
+      <button class="tab" role="tab" id="tab-mapa"        aria-controls="p-mapa"        aria-selected="false" tabindex="-1" data-panel="mapa">Mapa de temas</button>
+      <button class="tab" role="tab" id="tab-deputados"   aria-controls="p-deputados"   aria-selected="false" tabindex="-1" data-panel="deputados">Deputados</button>
+      <button class="tab" role="tab" id="tab-metodologia" aria-controls="p-metodologia" aria-selected="false" tabindex="-1" data-panel="metodologia">Metodologia</button>
     </div>
   </div>
 </nav>
 
-<main class="wrap">
+<main class="wrap" id="conteudo" tabindex="-1">
 
   <!-- ============ TESTE ============ -->
-  <section class="panel" id="p-teste">
+  <section class="panel" id="p-teste" role="tabpanel" aria-labelledby="tab-teste">
     <h2>Descubra quem propõe o que você quer</h2>
     <p class="lede">Você escolhe os temas que importam e avalia as propostas <strong>sem saber de quem são</strong>. Os nomes só aparecem no resultado. São <span id="lede-gov">todas as</span> candidaturas ao governo do DF, em ordem sorteada a cada visita.</p>
 
@@ -920,7 +944,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
   </section>
 
   <!-- ============ COMPARAR ============ -->
-  <section class="panel" id="p-comparar" hidden>
+  <section class="panel" id="p-comparar" role="tabpanel" aria-labelledby="tab-comparar" hidden>
     <h2>Lado a lado</h2>
     <p class="lede">Escolha até três candidaturas e veja o que cada uma promete em cada tema. Toda proposta traz o link da fonte. A ordem dentro de cada grupo é sorteada a cada visita.</p>
     <div id="cmp-picker"></div>
@@ -928,7 +952,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
   </section>
 
   <!-- ============ BUSCAR ============ -->
-  <section class="panel" id="p-buscar" hidden>
+  <section class="panel" id="p-buscar" role="tabpanel" aria-labelledby="tab-buscar" hidden>
     <h2>Todas as promessas</h2>
     <p class="lede">Filtre por tema, cargo ou palavra. São <span id="total-props"></span> propostas registradas, cada uma com a fonte de onde foi extraída.</p>
     <div class="filters">
@@ -950,7 +974,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
   </section>
 
   <!-- ============ MAPA ============ -->
-  <section class="panel" id="p-mapa" hidden>
+  <section class="panel" id="p-mapa" role="tabpanel" aria-labelledby="tab-mapa" hidden>
     <h2>Quem fala de quê</h2>
     <p class="lede">Os dez temas ficam parados num anel. Cada candidatura é puxada para os temas em que tem proposta, na proporção de quantas tem — então <strong>quem cobre tudo fica perto do meio, quem fala de pouca coisa vai parar encostado no tema de que fala</strong>. Passe o mouse para isolar uma ligação; clique num ponto para ler o que está por trás dela.</p>
 
@@ -966,11 +990,22 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
       </select>
       <label class="mapa-check"><input type="checkbox" id="mapa-rotulos" checked> nomes visíveis</label>
       <button class="btn ghost mini" id="mapa-reorg">Reorganizar</button>
+      <!-- O mapa é desenho puro em canvas: não recebe foco, não responde a
+           teclado, e o que ele mostra fica fora de alcance de quem não usa
+           ponteiro ou não enxerga. Este seletor abre exatamente o mesmo painel
+           que o clique num ponto abre — e o painel é HTML de verdade. Fica à
+           vista, e não escondido para leitor de tela, porque procurar um nome
+           numa lista é mais rápido que caçar a bolinha certa no desenho. -->
+      <label class="ordenar"><span>abrir pelo nome</span>
+        <select id="mapa-ir" aria-label="Abrir um tema ou uma candidatura pelo nome">
+          <option value="">escolha…</option>
+        </select>
+      </label>
       <span class="hint" id="mapa-hint"></span>
     </div>
 
     <div class="mapa-palco">
-      <canvas id="mapa-cv" role="img" aria-label="Grafo ligando candidaturas aos temas em que têm proposta"></canvas>
+      <canvas id="mapa-cv" role="img" aria-label="Desenho do grafo que liga candidaturas aos temas em que têm proposta. O mesmo conteúdo está no seletor “abrir pelo nome”, acima, e no painel logo abaixo do desenho."></canvas>
       <div class="mapa-legenda">
         <span><i class="lg lg-tema"></i>tema</span>
         <span><i class="lg lg-cand"></i>candidatura</span>
@@ -987,7 +1022,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
   </section>
 
   <!-- ============ DEPUTADOS ============ -->
-  <section class="panel" id="p-deputados" hidden>
+  <section class="panel" id="p-deputados" role="tabpanel" aria-labelledby="tab-deputados" hidden>
     <h2 id="dep-titulo">As candidaturas a deputado, uma a uma</h2>
     <p class="lede" id="dep-lede">O DF elege 24 deputados distritais e 8 federais. Nenhuma das candidaturas registrou propostas, porque a lei não obriga. O que existe de oficial é a ficha de cada uma — e ela está aqui.</p>
 
@@ -1123,7 +1158,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
   <section class="panel" id="p-candidato" hidden></section>
 
   <!-- ============ METODOLOGIA ============ -->
-  <section class="panel" id="p-metodologia" hidden>
+  <section class="panel" id="p-metodologia" role="tabpanel" aria-labelledby="tab-metodologia" hidden>
     <h2>Como esta página é feita</h2>
 
     <!-- Quem assina vem antes de como é feita. Quem chega desconfiado — e é
@@ -1943,6 +1978,10 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
       var on = o.dataset.panel === nome;
       if(on) achou = true;
       o.setAttribute("aria-selected", on ? "true" : "false");
+      /* Rodízio de tabindex: numa barra de abas o Tab entra uma vez e sai; quem
+         anda entre as abas são as setas. Sem isto, seriam seis paradas de Tab
+         antes de qualquer conteúdo. */
+      o.tabIndex = on ? 0 : -1;
       document.getElementById("p-" + o.dataset.panel).hidden = !on;
     });
     if(!achou) return false;
@@ -1996,6 +2035,34 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
       aoTrocarAba(t.dataset.panel);
     });
   });
+  /* Setas na barra de abas, como o role="tablist" já prometia. O foco segue a
+     seleção, que é o padrão para abas simples — a pessoa ouve o nome e vê o
+     painel no mesmo gesto, sem um Enter a mais. */
+  document.querySelector(".tabs").addEventListener("keydown", function(ev){
+    var i = tabs.indexOf(document.activeElement);
+    if(i < 0) return;
+    var j = -1;
+    if(ev.key === "ArrowRight" || ev.key === "ArrowDown") j = (i + 1) % tabs.length;
+    else if(ev.key === "ArrowLeft" || ev.key === "ArrowUp") j = (i - 1 + tabs.length) % tabs.length;
+    else if(ev.key === "Home") j = 0;
+    else if(ev.key === "End") j = tabs.length - 1;
+    if(j < 0) return;
+    ev.preventDefault();
+    tabs[j].click();
+    tabs[j].focus();
+  });
+
+  /* Pular para o conteúdo. Move o foco de verdade, não só a rolagem: sem o
+     foco, o próximo Tab voltaria para o começo da página. */
+  (function(){
+    var b = document.getElementById("pular"), alvo = document.getElementById("conteudo");
+    if(!b || !alvo) return;
+    b.addEventListener("click", function(){
+      alvo.focus();
+      alvo.scrollIntoView({ behavior:"smooth", block:"start" });
+    });
+  })();
+
   var aoTrocarAba = function(){};          // preenchido por cada aba
   var aplicarEstado = function(){};        // idem
 
@@ -2267,7 +2334,13 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
       return;
     }
     var cols = "180px repeat(" + cmpSel.length + ", minmax(230px, 1fr))";
-    var h = '<div class="cmp-grid" style="grid-template-columns:1fr">';
+    /* A tabela rola por dentro na horizontal e não dizia isso a ninguém. O
+       contêiner tem overflow-x, então a página não vaza — mas arrastar para o
+       lado dentro de um bloco é gesto que a pessoa teria de descobrir sozinha.
+       A faixa só aparece onde a tabela de fato não cabe. */
+    var h = '<p class="cmp-arrasta">arraste a tabela para o lado para ver '
+      + (cmpSel.length > 1 ? "as outras candidaturas" : "a coluna de propostas") + ' →</p>';
+    h += '<div class="cmp-grid" style="grid-template-columns:1fr">';
     h += '<div class="cmp-row" style="grid-template-columns:'+cols+'">';
     h += '<div class="cmp-cell eixo head">tema</div>';
     cmpSel.forEach(function(t){
@@ -2577,7 +2650,32 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
         + (cargoAtual === "senado" ? "senado" : cargoAtual === "governo" ? "governo do DF" : "governo e ao senado")
         + " · " + ts.length + " temas · " + arestas.length + " ligações";
       renderMudas();
+      preencherIr();
       limparPainel();
+    }
+
+    /* A lista de tudo que o desenho contém, em ordem alfabética, alcançável por
+       teclado. Inclui quem ficou fora do mapa por não ter proposta localizada:
+       no desenho essa pessoa não existe, e some de vista quem mais precisa ser
+       visto. */
+    function preencherIr(){
+      var sel = document.getElementById("mapa-ir");
+      if(!sel) return;
+      var porNome = function(a, b){ return a.rotulo.localeCompare(b.rotulo, "pt-BR"); };
+      var op = function(n, extra){
+        return '<option value="' + esc(n.id) + '">' + esc(n.rotulo) + (extra || "") + '</option>';
+      };
+      var ts = nos.filter(function(n){ return n.tipo === "tema"; });
+      var cs = nos.filter(function(n){ return n.tipo === "cand"; }).slice().sort(porNome);
+      var h = '<option value="">escolha…</option>';
+      if(ts.length) h += '<optgroup label="Temas">'
+        + ts.map(function(n){ return op(n, " — " + n.peso + " propostas"); }).join("") + '</optgroup>';
+      if(cs.length || mudas.length) h += '<optgroup label="Candidaturas">'
+        + cs.map(function(n){ return op(n, " — " + n.cobertura + " de " + D.eixos.length + " temas"); }).join("")
+        + mudas.slice().sort(porNome).map(function(n){ return op(n, " — sem proposta localizada"); }).join("")
+        + '</optgroup>';
+      sel.innerHTML = h;
+      sel.value = "";
     }
 
     function renderMudas(){
@@ -3048,6 +3146,18 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
         n.x += (Math.random()-0.5) * 70; n.y += (Math.random()-0.5) * 70;
       });
       acordar(1);
+    });
+    /* Mesmo destino do clique num ponto: quem escolhe pelo nome abre o mesmo
+       painel, e o ponto correspondente acende no desenho para quem enxerga. */
+    document.getElementById("mapa-ir").addEventListener("change", function(){
+      var id = this.value;
+      if(!id) return;
+      var n = nos.filter(function(x){ return x.id === id; })[0];
+      if(n) return abrir(n);
+      var m = mudas.filter(function(x){ return x.id === id; })[0];
+      if(!m) return;
+      selec = null; abrirCandidato(m); desenhar();
+      painel.scrollIntoView({ behavior:"smooth", block:"nearest" });
     });
 
     window.addEventListener("resize", function(){ if(!cv.offsetParent) return; medir(); });
@@ -3523,6 +3633,12 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
           + 'Candidatos a deputado não registram plano de governo no TSE — a lei não exige. '
           + 'Esta candidatura ainda não respondeu ao questionário.</dd></div>';
       }
+      /* A ficha aberta passa de uma tela — 1.065px no celular, com nove blocos.
+         O controle de fechar ficava só no topo, então quem leu até o fim tinha
+         de rolar tudo de volta para sair. Este fecha e devolve a pessoa ao
+         começo do card, que é de onde ela partiu. */
+      h += '<div class="larga" style="padding-top:2px">'
+        + '<button class="lk" data-fechar-ficha>↑ fechar a ficha de ' + esc(d.nome) + '</button></div>';
       return h + '</dl>';
     }
 
@@ -3702,6 +3818,17 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
       if(e.target.closest("a")) return;            // links seguem seu caminho
       // etiqueta de assunto e painel aberto têm dono próprio, no documento
       if(e.target.closest("[data-busca]") || e.target.closest(".assunto")) return;
+      var fecha = e.target.closest("[data-fechar-ficha]");
+      if(fecha){
+        var c0 = fecha.closest(".dep");
+        if(c0){
+          e.stopPropagation();
+          alternarFicha(c0);
+          c0.scrollIntoView({ behavior:"smooth", block:"start" });
+          c0.focus();
+        }
+        return;
+      }
       var card = e.target.closest(".dep");
       if(card) alternarFicha(card);
     });
