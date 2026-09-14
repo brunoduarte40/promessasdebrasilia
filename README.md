@@ -37,14 +37,34 @@ Nada. Sem cadastro, sem login, sem cookie, sem medidor de audiência. Nenhuma re
 ## Estrutura
 
 ```
-docs/          o site publicado (GitHub Pages serve daqui)
-  index.html   a página inteira, sem framework e sem dependência externa
-  *.js         os dados, carregados como scripts
-README.md      este arquivo
-*.mjs          os coletores
+index.html         a plataforma, como ela é editada — sem <head>, que o montador acrescenta
+docs/              o site publicado (GitHub Pages serve daqui)
+  index.html       a plataforma com o envelope completo
+  *.js             os dados, carregados como scripts
+  c/<apelido>/     uma página estática por candidatura — 626 delas
+  c/index.html     o índice das 626
+  c/ficha.css      a folha de estilo das fichas, uma só para todas
+  sitemap.xml      o mapa que o buscador lê
+  robots.txt       o ponteiro para o mapa
+README.md          este arquivo
+*.mjs              os coletores e os dois montadores
+```
+
+Para reconstruir o site depois de mexer no `index.html` ou nos dados:
+
+```
+node montar-site.mjs && node gerar-paginas.mjs
 ```
 
 O `index.html` não tem dependência de CDN, não usa framework e roda inteiro no navegador. Primeiro acesso: ~315 KB comprimidos. Os retratos das 602 candidaturas a deputado e as proposições da Câmara só carregam quando alguém abre a aba de deputados.
+
+## Por que cada candidatura tem uma página própria
+
+Dentro da plataforma, cada candidatura já tinha endereço — `#candidato/sardinha-33123`. Só que esse endereço **não existe para o buscador**: ele só aparece depois que o JavaScript roda, e robô de indexação não espera. Eram 626 fichas prontas e invisíveis. Quem procurasse por um nome no Google não encontrava nada.
+
+As páginas em `docs/c/` são arquivos de verdade, **sem uma linha de JavaScript**: o conteúdo está escrito no HTML, com título, descrição e endereço canônico próprios. É o que faz uma candidatura ser encontrável por quem digita o nome dela — e o que faz o link chegar num grupo de WhatsApp dizendo de quem é a ficha, em vez de chegar cru.
+
+O botão *copiar o link desta página*, dentro da plataforma, entrega o endereço dessas páginas, justamente porque é o único que serve para circular.
 
 ## Coletores
 
@@ -58,6 +78,7 @@ Todos são Node 18+ sem dependência, exceto onde indicado. Rode da raiz do proj
 | `fotos-deputados.mjs` | baixa os 602 retratos oficiais e gera o pacote em WebP (precisa de `sharp`) | uma vez |
 | `gerar-fotos.mjs` | o mesmo para as 24 candidaturas majoritárias | uma vez |
 | `montar-site.mjs` | monta a pasta `docs/` com o envelope HTML completo | antes de cada publicação |
+| `gerar-paginas.mjs` | escreve as 626 páginas estáticas de candidatura, o índice, o `sitemap.xml` e o `robots.txt` | depois do `montar-site.mjs`, sempre |
 | `criar-formulario.gs` | Apps Script que cria o formulário de correção no Google Forms | uma vez |
 
 `atualizar.mjs` grava um `mudancas.txt` com tudo que mudou, linha a linha, e uma seção separada para o que precisa de decisão humana.

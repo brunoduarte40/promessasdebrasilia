@@ -45,7 +45,16 @@ const FAVICON = "data:image/svg+xml,"
 const ARQUIVOS = ["dados.js", "fotos.js", "deputados.js", "noticias.js",
                   "fotos-deputados.js", "proposicoes.js", "og.png"];
 
-const corpo = await readFile("index.html", "utf8");
+/* A constante PAGINAS nasce vazia no arquivo, porque no visualizador de
+   artefato as páginas estáticas não existem. Aqui ela ganha valor: é o que faz
+   o botão "copiar o link desta página" entregar o endereço que o Google enxerga
+   em vez do fragmento, e o que acende o link do índice no rodapé. */
+const corpo = (await readFile("index.html", "utf8"))
+  .replace('var PAGINAS = "";', 'var PAGINAS = "' + DOMINIO + '/c/";');
+if (!corpo.includes('var PAGINAS = "' + DOMINIO + '/c/"')) {
+  console.error("não achei a constante PAGINAS em index.html — o link público ficaria errado");
+  process.exit(1);
+}
 
 const html = `<!doctype html>
 <html lang="pt-BR">
@@ -98,18 +107,24 @@ await writeFile("docs/index.html", html);
    seguro contra uma hora de confusão. */
 await writeFile("docs/.nojekyll", "");
 
-let faltando = [];
+/* Os dados podem já estar publicados em docs/ e ausentes na raiz — é o caso de
+   quem clonou o repositório, onde a cópia que vale é a de docs/. Só é falta de
+   verdade quando não existe nos dois lugares. */
+let faltando = [], jaEmDocs = [];
 for (const f of ARQUIVOS) {
-  if (!existsSync(f)) { faltando.push(f); continue; }
-  await copyFile(f, "docs/" + f);
+  if (existsSync(f)) { await copyFile(f, "docs/" + f); continue; }
+  if (existsSync("docs/" + f)) { jaEmDocs.push(f); continue; }
+  faltando.push(f);
 }
 
 const { size } = await import("node:fs").then((m) => m.promises.stat("docs/index.html"));
 console.log("docs/index.html  " + Math.round(size / 1024) + " KB");
 for (const f of ARQUIVOS.filter((f) => !faltando.includes(f))) {
   const s = await import("node:fs").then((m) => m.promises.stat("docs/" + f));
-  console.log("docs/" + f.padEnd(20) + Math.round(s.size / 1024) + " KB");
+  console.log("docs/" + f.padEnd(20) + Math.round(s.size / 1024) + " KB"
+    + (jaEmDocs.includes(f) ? "   (já estava em docs/, mantido)" : ""));
 }
 if (faltando.length) console.log("\nFALTANDO: " + faltando.join(", "));
+console.log("\nAgora rode  node gerar-paginas.mjs  para as 626 páginas de candidatura.");
 console.log("\nDomínio configurado: " + DOMINIO);
 console.log("Se mudar, é só a constante DOMINIO no alto deste arquivo.");

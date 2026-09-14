@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://brunoduarte40.github.io/promessasdebrasilia/sitemap.xml

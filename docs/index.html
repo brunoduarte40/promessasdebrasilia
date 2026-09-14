@@ -1317,11 +1317,24 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
      continua fazendo sentido sozinho. */
   var FORM_CORRECAO = "https://docs.google.com/forms/d/e/1FAIpQLSc5iXKFAowZJygncdr0QMM2_BVFBuLVWmeQ0A8Jgi1SlI7pvA/viewform";
   var REPOSITORIO   = "https://github.com/brunoduarte40/promessasdebrasilia";
+  /* Preenchido por montar-site.mjs quando o site é montado com as 626 páginas
+     estáticas. Vazio no visualizador de artefato, onde elas não existem — e aí
+     tudo abaixo continua funcionando com o endereço de fragmento de sempre.
+
+     Por que isto importa: #candidato/<apelido> só existe depois que o script
+     roda, e buscador não espera. O que a pessoa compartilha tem de ser o
+     endereço que o Google enxerga, senão o link circula e não indexa nada. */
+  var PAGINAS = "https://brunoduarte40.github.io/promessasdebrasilia/c/";
   (function(){
     if(REPOSITORIO){
       var c = document.getElementById("quem-codigo");
       if(c) c.insertAdjacentHTML("beforeend",
         '<br><a class="quem-btn" href="' + REPOSITORIO + '" target="_blank" rel="noopener">ver o código ↗</a>');
+    }
+    if(PAGINAS){
+      var f = document.querySelector(".foot");
+      if(f) f.insertAdjacentHTML("beforeend",
+        '<span><a href="' + PAGINAS + '">índice das 626 candidaturas</a></span>');
     }
     var e = document.getElementById("quem-erro");
     if(e) e.insertAdjacentHTML("beforeend", FORM_CORRECAO
@@ -1680,6 +1693,15 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
     }).join("");
   }
 
+  /* O que se copia e se manda para alguém. Quando o site tem as páginas
+     estáticas, é a delas: é a única que o buscador enxerga, a única que chega
+     ao WhatsApp com o nome da pessoa na prévia, e a única que abre sem
+     JavaScript. Sem elas, cai no endereço de fragmento, que é o que existe. */
+  function enderecoPublico(r){
+    if(PAGINAS && r && r.c) return PAGINAS + apelido(r.c) + "/";
+    return location.href;
+  }
+
   function paginaCandidato(r){
     var c = r.c, cargo = r.cargo, dep = cargo === "distrital" || cargo === "federal";
     var S = c.site_lido || null, M = c.mandato || null;
@@ -1689,7 +1711,7 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
     h += '<div class="cd-voltar">'
       + '<button class="lk" id="cd-volta">← voltar para a lista</button>'
       + '<button class="cd-share" id="cd-copiar">copiar o link desta página</button>'
-      + '<input id="cd-url" readonly hidden value="' + esc(location.href) + '">'
+      + '<input id="cd-url" readonly hidden value="' + esc(enderecoPublico(r)) + '">'
       + '</div>';
 
     /* ---- identidade ---- */
@@ -1883,7 +1905,8 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
      ninguém usa. O sandbox pode bloquear a área de transferência, então há dois
      planos B — o comando antigo e, por último, mostrar a URL para copiar à mão. */
   function copiarLink(botao){
-    var url = location.href, campo = document.getElementById("cd-url");
+    var url = enderecoPublico(candidatoAberto ? registro()[candidatoAberto] : null);
+    var campo = document.getElementById("cd-url");
     var ok = function(){
       botao.textContent = "link copiado ✓";
       botao.classList.add("ok");
