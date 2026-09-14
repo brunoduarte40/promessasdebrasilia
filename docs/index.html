@@ -44,7 +44,13 @@ img{max-width:100%}
 <style>
 :root{
   --ground:#F4F6F8; --surface:#FFFFFF; --surface-2:#EDF1F4;
-  --ink:#141A20; --ink-2:#57646F; --ink-3:#8593A0;
+  /* --ink-3 é o cinza de rótulo, legenda, metadado e nota — a maior parte do
+     texto de apoio da página, quase todo abaixo de 12px. Estava em 3,1:1 sobre
+     o branco, abaixo do mínimo de 4,5:1 da WCAG AA. Agora fecha 5,1:1 sobre a
+     superfície e 4,5:1 sobre a superfície-2, que é o fundo mais claro em que
+     ele aparece. Encostou no --ink-2, e tudo bem: aqui a hierarquia é feita
+     por tamanho, caixa alta e entreletra, não por tom. */
+  --ink:#141A20; --ink-2:#57646F; --ink-3:#626F7A;
   --line:#D6DDE3; --line-2:#C0CAD2;
   --accent:#0A7A45; --accent-ink:#075C34; --accent-soft:#E3F1E9;
   --warn:#A4670B; --warn-soft:#F7EDDC;
@@ -57,7 +63,7 @@ img{max-width:100%}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --ground:#0E1318; --surface:#161D24; --surface-2:#1D262E;
-    --ink:#E7EDF2; --ink-2:#9AA8B4; --ink-3:#71808C;
+    --ink:#E7EDF2; --ink-2:#9AA8B4; --ink-3:#8593A0;   /* era 4,2:1; agora 4,9:1 */
     --line:#28323B; --line-2:#374450;
     --accent:#43BE81; --accent-ink:#7FD6A8; --accent-soft:#153025;
     --warn:#D9A24B; --warn-soft:#2D2517;
@@ -67,7 +73,7 @@ img{max-width:100%}
 }
 :root[data-theme="dark"]{
   --ground:#0E1318; --surface:#161D24; --surface-2:#1D262E;
-  --ink:#E7EDF2; --ink-2:#9AA8B4; --ink-3:#71808C;
+  --ink:#E7EDF2; --ink-2:#9AA8B4; --ink-3:#8593A0;
   --line:#28323B; --line-2:#374450;
   --accent:#43BE81; --accent-ink:#7FD6A8; --accent-soft:#153025;
   --warn:#D9A24B; --warn-soft:#2D2517;
@@ -395,6 +401,38 @@ a.cd-ir{font-weight:600}
      painel com texto e barras. O painel recupera a coluna do retrato (34px
      de largura fixa + 13px de espaço), que abaixo dele está vazia. */
   .assunto{margin-left:-47px; padding:11px 12px 12px}
+}
+
+/* ---- chegar na candidatura sem uma tela e meia de rolagem ----
+   Medido no ar: 1.070px do topo até o primeiro card, numa tela de 812px —
+   288px de texto de abertura mais 229px de filtros empilhados. O texto
+   respondia "por que quase ninguém tem proposta aqui", que é pergunta boa,
+   mas que a pessoa faz DEPOIS de estranhar, não antes. Agora nasce fechado. */
+.lede-mais{margin-top:8px}
+.lede-mais > summary{
+  cursor:pointer; list-style:none; display:inline-flex; align-items:center; gap:7px;
+  font-family:var(--mono); font-size:.67rem; letter-spacing:.04em;
+  color:var(--accent-ink); min-height:44px;
+}
+.lede-mais > summary::-webkit-details-marker{display:none}
+.lede-mais > summary::before{content:"+"; font-size:.9rem; line-height:1}
+.lede-mais[open] > summary::before{content:"–"}
+.lede-mais > summary:hover{text-decoration:underline; text-underline-offset:3px}
+.lede-mais p{margin:0 0 6px; font-size:.95rem}
+
+@media (max-width:640px){
+  /* dois seletores por linha, em vez de cinco empilhados */
+  #p-deputados .filters{gap:7px}
+  #p-deputados .filters input[type="search"]{flex:1 1 100%}
+  #p-deputados .filters select{flex:1 1 calc(50% - 4px); min-width:0; font-size:.82rem; padding:9px 8px}
+
+  /* alvos de toque: mediu-se 23px nos links de canal e nas etiquetas de
+     assunto, 27px no botão da cola. O polegar precisa de 44. */
+  .dep-links a{min-height:44px; display:inline-flex; align-items:center}
+  .cola-b{min-height:44px; display:inline-flex; align-items:center}
+  .chip{min-height:44px}
+  button.tag{min-height:40px}
+  .cola-x, .cola-fechar, .assunto-x{min-width:44px; min-height:44px}
 }
 
 /* ---------- minha cola ---------- */
@@ -3360,16 +3398,27 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
 
     var R = base.resumo || {};
     if(R.total){
+      /* O título usa o número da URNA, não o do registro: a lista mostra 582 e
+         dizer 602 logo acima faz o leitor procurar 20 que não estão ali. As 20
+         fora da urna continuam alcançáveis pelo filtro próprio e por endereço. */
       document.getElementById("dep-titulo").textContent =
-        R.total + " candidaturas a deputado, uma a uma";
+        R.na_urna + " candidaturas a deputado, uma a uma";
+      /* A primeira frase é a que serve para agir: quantas são e como procurar.
+         O resto — por que não há propostas, quantos sites foram lidos — é a
+         explicação de um estranhamento que ainda não aconteceu, e vai para
+         dentro do detalhe. Nada foi cortado; só saiu da frente. */
       document.getElementById("dep-lede").innerHTML =
-        "O DF elege 24 deputados distritais e 8 federais. Concorrem " + R.na_urna + " pessoas — "
-        + R.distrital + " ao distrital e " + R.federal + " ao federal, já descontadas as "
-        + R.fora_da_urna + " que renunciaram ou tiveram o registro negado. <strong>Nenhuma delas registrou propostas no TSE</strong>, "
-        + "porque a lei não obriga — mas lemos os " + (R.site_lido || 0) + " sites de campanha declarados, e "
-        + (R.site_com_proposta || 0) + " candidaturas publicam algo cobrável. "
-        + "A busca abaixo procura dentro disso: escreva <em>acessibilidade</em>, <em>creche</em> ou o nome de uma região "
-        + "e ela acha quem fala do assunto, não só quem tem a palavra no nome.";
+        "<strong>" + R.na_urna + " pessoas concorrem</strong> a deputado no DF: "
+        + R.distrital + " ao distrital e " + R.federal + " ao federal. "
+        + "Escreva <em>acessibilidade</em>, <em>creche</em> ou o nome de uma região — "
+        + "a busca acha quem fala do assunto, não só quem tem a palavra no nome."
+        + '<details class="lede-mais"><summary>Por que quase nenhuma tem proposta registrada</summary>'
+        + "<p>O DF elege 24 deputados distritais e 8 federais. As " + R.na_urna
+        + " na urna já descontam as " + R.fora_da_urna + " candidaturas que renunciaram ou "
+        + "tiveram o registro negado. <strong>Nenhuma registrou propostas no TSE</strong>, porque "
+        + "a lei não obriga — mas lemos os " + (R.site_lido || 0) + " sites de campanha declarados "
+        + "no registro, e " + (R.site_com_proposta || 0) + " candidaturas publicam algo cobrável.</p>"
+        + "</details>";
     }
 
     var BRL = new Intl.NumberFormat("pt-BR", { style:"currency", currency:"BRL", maximumFractionDigits:0 });
