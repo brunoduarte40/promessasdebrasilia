@@ -618,7 +618,14 @@ let ind = "<h1>Todas as candidaturas do DF em 2026</h1>"
   + '<p class="nota" style="margin-top:12px">' + REGISTRO.length + " candidaturas, uma página cada, "
   + "com o que é público sobre ela: registro, número na urna, patrimônio declarado, propostas "
   + "onde existirem, atividade no mandato para quem tem, e as manchetes dos portais do DF. "
-  + "Ordem alfabética dentro de cada cargo.</p>";
+  + "Ordem alfabética dentro de cada cargo.</p>"
+  /* O índice é por onde o robô de indexação entra e por onde muita gente chega
+     de busca. É o lugar certo para a carta ser encontrada por quem é candidato
+     — e é o link que tira a página de órfã, estado em que buscador trata como
+     periférica mesmo listada no sitemap. */
+  + '<p class="nota" style="margin-top:14px"><b>É candidata ou candidato e não '
+  + 'encontrou a sua proposta aqui?</b> <a href="' + DOMINIO + '/convite/">Leia o convite '
+  + "e mande a sua</a> — publico inteira, com a sua fonte, no mesmo dia.</p>";
 for (const [cg, rot] of grupos) {
   const doGrupo = REGISTRO.filter((r) => r.cargo === cg)
     .sort((a, b) => a.c.nome.localeCompare(b.c.nome, "pt-BR"));

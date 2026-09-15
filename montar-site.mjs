@@ -50,9 +50,15 @@ const ARQUIVOS = ["dados.js", "fotos.js", "deputados.js", "noticias.js",
    o botão "copiar o link desta página" entregar o endereço que o Google enxerga
    em vez do fragmento, e o que acende o link do índice no rodapé. */
 const corpo = (await readFile("index.html", "utf8"))
-  .replace('var PAGINAS = "";', 'var PAGINAS = "' + DOMINIO + '/c/";');
+  .replace('var PAGINAS = "";', 'var PAGINAS = "' + DOMINIO + '/c/";')
+  .replace('var CONVITE = "";', 'var CONVITE = "' + DOMINIO + '/convite/";');
 if (!corpo.includes('var PAGINAS = "' + DOMINIO + '/c/"')) {
   console.error("não achei a constante PAGINAS em index.html — o link público ficaria errado");
+  process.exit(1);
+}
+if (!corpo.includes('var CONVITE = "' + DOMINIO + '/convite/"')) {
+  console.error("não achei a constante CONVITE em index.html — a carta aberta ficaria órfã,\n"
+    + "alcançável só por quem já tem o link, que é o contrário de um convite público");
   process.exit(1);
 }
 

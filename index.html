@@ -1287,16 +1287,26 @@ footer{border-top:1px solid var(--line); margin-top:10px; padding-block:22px 40p
      roda, e buscador não espera. O que a pessoa compartilha tem de ser o
      endereço que o Google enxerga, senão o link circula e não indexa nada. */
   var PAGINAS = "";
+  /* A carta aberta às candidaturas, também preenchida pelo montar-site.mjs.
+     Ela é o único lugar da página escrito PARA quem é candidato, e não para
+     quem vota — e a frase que a sustenta é "o convite é público e é o mesmo
+     para as 582". Página que só se alcança tendo o link na mão não é pública,
+     então ela precisa de porta de entrada aqui e no índice das 626. */
+  var CONVITE = "";
   (function(){
     if(REPOSITORIO){
       var c = document.getElementById("quem-codigo");
       if(c) c.insertAdjacentHTML("beforeend",
         '<br><a class="quem-btn" href="' + REPOSITORIO + '" target="_blank" rel="noopener">ver o código ↗</a>');
     }
-    if(PAGINAS){
-      var f = document.querySelector(".foot");
-      if(f) f.insertAdjacentHTML("beforeend",
+    var f = document.querySelector(".foot");
+    if(PAGINAS && f){
+      f.insertAdjacentHTML("beforeend",
         '<span><a href="' + PAGINAS + '">índice das 626 candidaturas</a></span>');
+    }
+    if(CONVITE && f){
+      f.insertAdjacentHTML("beforeend",
+        '<span><a href="' + CONVITE + '">é candidato? mande a sua proposta</a></span>');
     }
     var e = document.getElementById("quem-erro");
     if(e) e.insertAdjacentHTML("beforeend", FORM_CORRECAO
