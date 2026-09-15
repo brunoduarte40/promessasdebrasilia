@@ -87,6 +87,17 @@ Para reconstruir o site depois de mexer no `index.html` ou nos dados:
 node montar-site.mjs && node gerar-paginas.mjs
 ```
 
+No Windows PowerShell 5.1, que é o que vem com o Windows, `&&` não existe:
+
+```powershell
+node montar-site.mjs
+if ($?) { node gerar-paginas.mjs }
+```
+
+A ordem não é decorativa: `gerar-paginas.mjs` lê os dados de dentro de `docs/`,
+que é justamente o que o `montar-site.mjs` acabou de escrever. Rodar o segundo
+sozinho publica 626 páginas a partir da build anterior, sem avisar que fez isso.
+
 O `index.html` não tem dependência de CDN, não usa framework e roda inteiro no navegador. Primeiro acesso: ~315 KB comprimidos. Os retratos das 602 candidaturas a deputado e as proposições da Câmara só carregam quando alguém abre a aba de deputados.
 
 ## Por que cada candidatura tem uma página própria
@@ -124,4 +135,8 @@ O formulário de correção está na aba **Metodologia** da página, em *Quem fa
 
 ## Licença
 
-Os dados são públicos e vêm do TSE e da Câmara Legislativa do DF, cada um com suas próprias condições de uso. O código deste repositório é livre para uso, cópia e adaptação — inclusive para montar a mesma coisa em outro estado, que é o melhor destino possível para ele.
+**Ainda não definida.** Sem um arquivo de licença vale o padrão — todos os direitos reservados —, e não quero que ninguém descubra isso depois de ter copiado.
+
+A intenção é o contrário disso: **montar a mesma coisa em outro estado é o melhor destino possível para este código.** Se é o que você quer fazer, me procure pelo formulário da aba *Metodologia* e a gente resolve a licença na hora. A demora aqui é minha, não é reserva.
+
+Os dados são outra conversa: vêm do TSE e da Câmara Legislativa do DF, são públicos na origem, e cada um tem suas próprias condições de uso.

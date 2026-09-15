@@ -38,6 +38,7 @@
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { contar } from "./grupos.mjs";
 
 const require = createRequire(import.meta.url);
 
@@ -99,6 +100,26 @@ const slug = (s) =>
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 const apelido = (c) => slug(c.nome) + "-" + c.numero;
+
+/* Formulário próprio para a candidatura mandar a proposta. Enquanto não
+   existir, a carta cai no formulário de correção, que já está no ar e já exige
+   fonte — não é o ideal, mas é uma porta que abre. Página pública não mostra
+   recado de obra: o aviso de que isto ainda é provisório vai para o console,
+   que é onde eu leio e o eleitor não. */
+const FORM_PROPOSTA = "";
+const FORM_CORRECAO = (await readFile("index.html", "utf8"))
+  .match(/var FORM_CORRECAO\s*=\s*"([^"]+)"/)?.[1] || "";
+const FORM_CARTA = FORM_PROPOSTA || FORM_CORRECAO;
+
+const MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+                  "agosto", "setembro", "outubro", "novembro", "dezembro"];
+/* Sem new Date(): "2026-09-13" lido como UTC volta um dia no fuso de Brasília,
+   e uma data errada aqui é uma data errada na afirmação pública. */
+function porExtensoISO(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!m) return String(iso || "");
+  return Number(m[3]) + " de " + MESES_PT[Number(m[2]) - 1] + " de " + m[1];
+}
 
 const moeda = new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "BRL", maximumFractionDigits: 0,
@@ -267,6 +288,44 @@ ul.noticias em{display:block; font-style:normal; font-family:var(--mono);
   color:var(--ink-3); margin-left:6px}
 .grupo{font-family:var(--mono); font-size:.66rem; text-transform:uppercase;
   letter-spacing:.1em; color:var(--ink-3); margin:26px 0 6px}
+
+/* convite */
+.cv-lead{font-family:var(--serif); font-size:1.08rem; line-height:1.6;
+  color:var(--ink-2); margin:14px 0 0; max-width:72ch}
+.cv-numero{display:flex; align-items:baseline; gap:18px; margin:30px 0 8px;
+  padding:22px 0; border-top:2px solid var(--ink); border-bottom:1px solid var(--line)}
+.cv-numero b{font-size:3.4rem; line-height:1; font-weight:700; letter-spacing:-.03em;
+  font-variant-numeric:tabular-nums}
+.cv-numero span{font-size:1rem; line-height:1.4; color:var(--ink-2); max-width:34ch}
+.cv-grupos{margin:20px 0 0}
+.cv-g{display:flex; align-items:baseline; gap:16px; padding:13px 0;
+  border-bottom:1px solid var(--line)}
+.cv-g b{font-family:var(--mono); font-size:1.15rem; font-weight:600; color:var(--accent);
+  font-variant-numeric:tabular-nums; flex:none; width:64px; text-align:right}
+.cv-g span{font-size:.95rem; line-height:1.45; flex:1}
+/* O aviso não é rodapé nem letra miúda: é a frase que separa o que foi
+   verificado do que não foi, e quem lê a página tem de topar com ela. */
+.cv-atencao{border-left:5px solid var(--accent); background:var(--accent-soft);
+  padding:20px 24px; margin:30px 0; border-radius:2px}
+.cv-atencao p{margin:0; font-size:1rem; line-height:1.55; color:var(--ink)}
+.cv-perguntas{counter-reset:cvp; margin:18px 0 0; padding:0; list-style:none}
+.cv-perguntas li{counter-increment:cvp; position:relative; padding:11px 0 11px 46px;
+  font-size:1rem; line-height:1.45}
+.cv-perguntas li::before{content:counter(cvp); position:absolute; left:0; top:11px;
+  font-family:var(--mono); font-size:.8rem; font-weight:600; color:var(--accent);
+  border:1px solid var(--accent); width:28px; height:28px; display:grid;
+  place-items:center; border-radius:2px}
+.cv-faz{margin:18px 0 0; padding:0; list-style:none}
+.cv-faz li{padding:9px 0 9px 30px; position:relative; font-size:.98rem; line-height:1.5;
+  border-bottom:1px solid var(--line)}
+.cv-faz li::before{content:"→"; position:absolute; left:0; color:var(--accent);
+  font-weight:600}
+.cv-cta{display:inline-flex; align-items:center; min-height:52px; margin-top:22px;
+  background:var(--accent); color:#fff; text-decoration:none; font-weight:600;
+  font-size:1.02rem; padding:0 28px; border-radius:3px}
+.cv-cta:hover{background:var(--accent-ink); color:#fff}
+.cv-assina{font-family:var(--serif); font-size:1rem; line-height:1.6; margin-top:34px;
+  color:var(--ink-2)}
 `;
 
 /* ================= o envelope de cada página ================= */
@@ -584,6 +643,128 @@ const indiceHTML = envelopeHTML({
 }).replace('href="../ficha.css"', 'href="ficha.css"');
 await writeFile("docs/c/index.html", indiceHTML);
 urls.unshift(DOMINIO + "/c/");
+
+/* ================= a carta aberta às candidaturas ================= */
+/* Esta página é a âncora do convite: é para ela que o Instagram, o Reel e cada
+   resposta em mensagem apontam, e é ela que vai ser lida se alguém reclamar.
+   Por isso ela é GERADA, e não escrita à mão: os números têm de ser os mesmos
+   do card publicado no mesmo dia. Número escrito à mão envelhece em silêncio.
+
+   As duas datas vêm do questionario.json, o mesmo arquivo do gerar-placar.mjs.
+   Sem elas a página sai sem a seção do que foi checado, porque afirmar que se
+   procurou sem dizer quando é exatamente o que não se pode fazer. */
+let convite = null;
+if (existsSync("questionario.json")) {
+  const q = JSON.parse(await readFile("questionario.json", "utf8"));
+  const r = q.registro || {};
+  if (r.visitamos) convite = { ...r, propostas: Object.keys(q.propostas || {}).length };
+}
+
+const URNA_DEP = (DEP.candidatos || []).filter((c) => c.na_urna);
+const CT = contar(URNA_DEP);
+
+if (!convite) {
+  console.log("\nAVISO: questionario.json sem 'registro.visitamos' — pulei a página /convite/.");
+} else {
+  const dataVisita = porExtensoISO(convite.visitamos);
+  const cvURL = DOMINIO + "/convite/";
+  const linhas = CT.grupos.filter((g) => g.chave !== "proposta").map((g) =>
+    '<div class="cv-g"><b>' + g.n + "</b><span>" + esc(g.longa) + "</span></div>").join("");
+
+  const corpoCV = '<h1>Carta aberta às ' + CT.total + " candidaturas a deputado no "
+      + "Distrito Federal</h1>"
+    + '<p class="cv-lead">Meu nome é Bruno Duarte. Moro em Brasília e faço, por conta '
+      + "própria e como pessoa física, uma página que reúne o que cada candidatura promete "
+      + "ao DF nestas eleições. Sem financiamento, sem patrocínio, sem impulsionamento e sem "
+      + "vínculo com partido, coligação, candidatura ou governo.</p>"
+
+    + "<section><h2>O que eu procurei</h2>"
+    + "<p>Em " + esc(dataVisita) + " fui atrás das " + CT.total + " candidaturas a deputado "
+      + "distrital e federal que estão na urna no DF. Procurei no canal que cada uma declarou "
+      + "ao próprio TSE — o endereço que a candidatura informou como sendo o dela.</p>"
+    + '<div class="cv-numero"><b>' + CT.comProposta + "</b>"
+      + "<span>candidaturas tinham proposta escrita onde disseram que teriam</span></div>"
+    + "<p>Nas outras " + CT.semProposta + " não encontrei, e por motivos diferentes. "
+      + "A página diz qual foi em cada caso:</p>"
+    + '<div class="cv-grupos">' + linhas + "</div>"
+    + '<div class="cv-atencao"><p><b>Isso não quer dizer que essas candidaturas não tenham '
+      + "proposta.</b> Quer dizer que eu não encontrei proposta escrita naquele endereço, "
+      + "naquele dia. A distância entre essas duas frases é o motivo desta carta.</p></div>"
+    + "</section>"
+
+    + "<section><h2>O convite</h2>"
+    + "<p>Se você é candidata ou candidato e acha que falta a sua, me manda. São quatro "
+      + "perguntas, as mesmas para todo mundo:</p>"
+    + '<ol class="cv-perguntas">'
+      + "<li>Quais são as suas três prioridades para o DF?</li>"
+      + "<li>Que projeto você apresenta no primeiro ano?</li>"
+      + "<li>De onde sai o dinheiro para isso?</li>"
+      + "<li>Qual posição você assume nos temas em disputa?</li></ol>"
+    + '<p class="nota">Não precisa responder às quatro. Se você já tem um plano escrito, '
+      + "me manda o link e eu trabalho em cima dele.</p>"
+    + "</section><section><h2>O que eu me comprometo a fazer com o que você mandar</h2>"
+    + '<ul class="cv-faz">'
+      + "<li>publicar inteiro, sem corte</li>"
+      + "<li>sem comentário meu, sem análise, sem nota, sem &ldquo;contexto&rdquo;</li>"
+      + "<li>com a fonte que você indicar</li>"
+      + "<li>no mesmo dia em que chegar</li>"
+      + "<li>e exatamente igual para as " + CT.total + ", sem exceção e sem ordem de preferência</li>"
+      + "</ul>"
+    + "<p><b>O que eu não faço:</b> não resumo, não classifico proposta como boa ou ruim, "
+      + "não comparo você com adversário e não peço voto para ninguém. A página existe para "
+      + "que quem vota leia e decida sozinho.</p>"
+    + (FORM_CARTA
+        ? '<p><a class="cv-cta" href="' + esc(FORM_CARTA) + '" target="_blank" '
+          + 'rel="noopener">Mandar a minha proposta &rarr;</a></p>'
+          + (FORM_PROPOSTA ? ""
+            : '<p class="nota">É o mesmo formulário que recebe as correções da página. '
+              + "Escreva no campo de descrição que é proposta de candidatura e eu trato "
+              + "como proposta.</p>")
+        : '<p class="nota">Me procure pelo formulário da aba Metodologia da página.</p>')
+    + "</section>"
+
+    + "<section><h2>Por que isto não chegou na sua caixa de entrada</h2>"
+    + "<p>Porque não tem como, e prefiro dizer isso na cara. O TSE não publica e-mail de "
+      + "candidato — o campo existe na base e vem vazio para todo mundo. Mandar mensagem "
+      + "privada para centenas de perfis seria disparo em massa, que é spam mesmo quando a "
+      + "intenção é boa. Então o convite é público, está aqui, e é o mesmo para as "
+      + CT.total + ". Se você está lendo isto, ele já chegou até você.</p></section>"
+
+    + "<section><h2>Se algo está errado</h2>"
+    + "<p>Erro encontrado é erro para corrigir. Me manda com a fonte e a correção é "
+      + "publicada com a data da mudança à vista. Isso vale inclusive para o que está escrito "
+      + "sobre a sua candidatura aqui: se o seu site estava no ar e eu disse que não abriu, "
+      + "quero saber.</p></section>"
+
+    + '<p class="cv-assina">Bruno Duarte<br>Brasília, ' + esc(dataVisita) + "</p>"
+    + '<p class="rodape">Todas as ' + REGISTRO.length + " candidaturas, uma a uma, e o código "
+      + "que gera esta página são públicos.<br>"
+      + '<a class="voltar" href="' + DOMINIO + '/c/">ver todas as candidaturas</a> · '
+      + '<a class="voltar" href="' + DOMINIO + '/">voltar para a plataforma</a></p>';
+
+  const cvHTML = envelopeHTML({
+    titulo: "Carta aberta às " + CT.total + " candidaturas a deputado no DF — promessas de Brasília",
+    descricao: "Procurei a proposta das " + CT.total + " candidaturas a deputado do DF no canal "
+      + "que cada uma declarou ao TSE e encontrei em " + CT.comProposta + ". Se falta a sua, "
+      + "mande: publico inteira, com a sua fonte, no mesmo dia.",
+    url: cvURL,
+    corpo: corpoCV,
+  }).replace('href="../ficha.css"', 'href="../c/ficha.css"');
+
+  if (!existsSync("docs/convite")) await mkdir("docs/convite", { recursive: true });
+  await writeFile("docs/convite/index.html", cvHTML);
+  urls.unshift(cvURL);
+  if (!FORM_PROPOSTA) {
+    console.log("\nA carta está usando o formulário de correção como porta de entrada.");
+    console.log("Quando houver um formulário só para proposta, é a constante FORM_PROPOSTA");
+    console.log("no alto deste arquivo — a nota explicativa some sozinha.");
+  }
+  if (!FORM_CARTA) {
+    console.log("\nAVISO: não achei FORM_CORRECAO no index.html. A carta foi publicada");
+    console.log("sem botão de envio, o que a deixa convidando sem dizer para onde.");
+  }
+}
+
 urls.unshift(DOMINIO + "/");
 
 /* ---- sitemap e robots: sem eles o buscador não sabe que as 626 existem ---- */
