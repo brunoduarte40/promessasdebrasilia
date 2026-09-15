@@ -1,8 +1,39 @@
 # promessas de Brasília
 
-O que cada candidatura prometeu ao Distrito Federal nas eleições de 2026, com a fonte de cada promessa.
+**O que cada candidatura prometeu ao Distrito Federal nas eleições de 2026, com a fonte de cada promessa.**
 
-**Página independente.** Feita por Bruno Duarte, em Brasília, pessoa física, por conta própria. Sem vínculo com candidatura, partido, coligação ou governo. Sem financiamento de ninguém, sem publicidade, sem patrocínio, e nunca impulsionada com dinheiro.
+### → **[brunoduarte40.github.io/promessasdebrasilia](https://brunoduarte40.github.io/promessasdebrasilia/)**
+
+![A plataforma aberta no teste de afinidade](imagens/capa.png)
+
+| | |
+|---:|---|
+| **626** | candidaturas: governo, senado, deputado distrital e federal |
+| **552** | promessas publicadas, **todas com link da fonte** |
+| **0** | inferidas, deduzidas ou ponderadas por baixo do pano |
+| **0** | financiamento, publicidade, patrocínio ou impulsionamento |
+
+**Página independente.** Feita por Bruno Duarte, em Brasília, pessoa física, por conta própria. Sem vínculo com candidatura, partido, coligação ou governo.
+
+---
+
+## O que ela faz
+
+**Teste de afinidade às cegas.** Você escolhe até três temas, lê as propostas **sem saber de quem são** e só depois os nomes aparecem. Uma proposta por candidatura em cada tema, para que ninguém pontue mais por ter escrito mais.
+
+**Comparador lado a lado** de até três candidaturas, tema por tema, cada proposta com o link de onde saiu.
+
+**Mapa de temas.** Os dez temas ficam ancorados num anel e cada candidatura é puxada para aqueles em que tem proposta. Distância do centro é amplitude; a direção em que a bolinha pende é ênfase. O que ele mostra de verdade é **onde há silêncio**.
+
+![O mapa de temas, com as candidaturas ao governo ligadas aos temas em que têm proposta](imagens/mapa.png)
+
+**As 582 candidaturas a deputado, uma a uma** — com ficha do TSE, patrimônio declarado, atividade no mandato para quem tem, e busca que procura dentro de proposta, bandeira e biografia, não só no nome.
+
+![A lista de candidaturas a deputado, com os filtros e a contagem por opção](imagens/deputados.png)
+
+**Uma página própria para cada uma das 626**, sem uma linha de JavaScript, com título e prévia de link próprios. É o que se manda num grupo de WhatsApp, e é o que o buscador enxerga.
+
+<img src="imagens/ficha.png" alt="A página estática de uma candidatura, vista no celular" width="330">
 
 ---
 
