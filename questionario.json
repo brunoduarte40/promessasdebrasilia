@@ -2,7 +2,7 @@
   "_leia": "Registro do que sustenta as frases dos cards. 'visitamos' é a data em que os canais declarados ao TSE foram conferidos — é ela que autoriza dizer 'procuramos e não encontramos'. 'convite' é a data em que a porta foi aberta publicamente. Sem as duas, a afirmação vira acusação e o script não gera nada.",
   "registro": {
     "visitamos": "2026-09-13",
-    "convite": "",
+    "convite": "2026-09-15",
     "onde_enviar": "formulário da aba Metodologia",
     "observacao": ""
   },

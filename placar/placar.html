@@ -1,0 +1,82 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>placar — promessas de Brasília</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#888;font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.card{width:1080px;height:1350px;padding:84px;display:flex;flex-direction:column;
+  position:relative;overflow:hidden}
+/* O story tem folga extra em cima e embaixo porque o Instagram desenha por cima:
+   a barra do perfil no topo e a caixa de resposta no pé. Conteúdo colado na
+   borda some debaixo da interface. */
+.story{width:1080px;height:1920px;padding:150px 84px 250px}
+.escuro{background:#141A20;color:#E7EDF2}
+.claro{background:#FAFAF8;color:#141A20}
+.selo{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:25px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:600}
+.escuro .selo{color:#43BE81}
+.claro .selo{color:#0A7A45}
+.numerao{font-size:330px;line-height:.82;font-weight:800;letter-spacing:-.045em;
+  font-variant-numeric:tabular-nums;color:#fff}
+.story .numerao{font-size:400px}
+.frase{font-size:63px;line-height:1.17;font-weight:600;letter-spacing:-.02em;max-width:16ch}
+.story .frase{font-size:72px}
+.frase em{font-style:normal;color:#43BE81}
+/* O escopo anda junto do número, não no rodapé: é ele que diz o que exatamente
+   foi verificado, e quem só olha o card tem de ler os dois na mesma batida. */
+.escopo{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:25px;line-height:1.45;color:#9AA8B4;
+  max-width:34ch;border-left:4px solid #43BE81;padding-left:22px}
+.story .escopo{font-size:28px}
+.linhas{display:flex;gap:0;border-top:2px solid rgba(255,255,255,.16);padding-top:34px}
+.linhas > div{flex:1;border-left:2px solid rgba(255,255,255,.16);padding-left:24px}
+.linhas > div:first-child{border-left:0;padding-left:0}
+.ln-n{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:52px;font-weight:600;line-height:1;
+  font-variant-numeric:tabular-nums}
+.ln-t{font-size:23px;line-height:1.3;color:#9AA8B4;margin-top:12px;max-width:15ch}
+.rodape{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:21px;letter-spacing:.02em;display:flex;
+  justify-content:space-between;align-items:flex-end;gap:20px}
+.escuro .rodape{color:#9AA8B4}
+.claro .rodape{color:#626F7A}
+.titulo{font-size:58px;line-height:1.1;font-weight:700;letter-spacing:-.025em}
+.sub{font-size:27px;line-height:1.45;color:#57646F;margin-top:20px;max-width:40ch}
+.cresce{flex:1;min-height:0}
+.vazio{flex:1;display:flex;flex-direction:column;justify-content:center;gap:26px}
+.vz-item{display:flex;gap:22px;align-items:flex-start}
+.vz-num{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:27px;font-weight:600;color:#0A7A45;
+  border:2px solid #0A7A45;width:52px;height:52px;display:grid;place-items:center;
+  flex:none;border-radius:2px}
+.vz-tx{font-size:31px;line-height:1.35;padding-top:8px}
+.lista{display:flex;flex-direction:column;gap:0}
+.item{display:flex;align-items:baseline;gap:18px;padding:17px 0;
+  border-bottom:1px solid #E4E4E0}
+.it-num{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:27px;font-weight:600;color:#0A7A45;
+  font-variant-numeric:tabular-nums;flex:none;width:112px}
+.it-nome{font-size:31px;font-weight:600;letter-spacing:-.01em;flex:1;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it-part{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:22px;color:#626F7A;letter-spacing:.05em;flex:none}
+.lista.compacta .item{padding:11px 0}
+.lista.compacta .it-nome{font-size:26px}
+.lista.compacta .it-num{font-size:23px;width:96px}
+.lista.compacta .it-part{font-size:19px}
+.grp{display:flex;align-items:baseline;gap:26px;padding:19px 0;
+  border-bottom:1px solid #E4E4E0}
+.grp-n{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:44px;font-weight:600;color:#0A7A45;
+  font-variant-numeric:tabular-nums;flex:none;width:118px;text-align:right}
+.grp-t{font-size:28px;line-height:1.3;flex:1}
+.barras{display:flex;flex-direction:column;gap:0;margin-top:26px}
+.bar{display:flex;align-items:center;gap:16px;padding:6px 0}
+.bar-p{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:22px;line-height:1.15;font-weight:600;width:178px;
+  flex:none;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-t{flex:1;height:22px;background:#E3F1E9;position:relative;border-radius:1px}
+.bar-f{position:absolute;inset:0 auto 0 0;background:#0A7A45;border-radius:1px}
+.bar-v{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:22px;font-weight:600;width:112px;flex:none;
+  text-align:right;font-variant-numeric:tabular-nums;color:#57646F}
+.nota{font-size:22px;line-height:1.45;color:#626F7A;margin-top:26px;max-width:42ch}
+.met{display:flex;flex-direction:column;gap:22px;margin-top:38px}
+.met-l{display:flex;gap:20px;align-items:flex-start}
+.met-k{font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:21px;letter-spacing:.09em;text-transform:uppercase;
+  color:#0A7A45;width:190px;flex:none;padding-top:7px;font-weight:600}
+.met-v{font-size:28px;line-height:1.4;flex:1}
+.caixa{background:#E3F1E9;border-left:8px solid #0A7A45;padding:34px 38px;
+  margin-top:auto}
+.caixa p{font-size:29px;line-height:1.4;font-weight:600;color:#075C34}
+.caixa span{display:block;font-family:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;font-size:27px;margin-top:14px;
+  color:#141A20;font-weight:600;white-space:nowrap}
+</style></head><body><div class="card escuro" id="c1"><div class="selo">placar do silêncio · 15 de setembro</div><div class="cresce" style="display:flex;flex-direction:column;justify-content:center;gap:46px"><div class="numerao">519</div><div class="frase">das 582 candidaturas a deputado no DF <em>não publicaram proposta nenhuma</em>.</div><div class="escopo">no canal que elas mesmas declararam ao TSE, conferido em 13 de setembro</div></div><div class="linhas" style="margin-bottom:40px"><div><div class="ln-n">63</div><div class="ln-t">têm proposta no site que declararam</div></div><div><div class="ln-n">116</div><div class="ln-t">declararam site, e ele não traz proposta</div></div><div><div class="ln-n">403</div><div class="ln-t">não declararam site de campanha</div></div></div><div class="rodape"><span>@promessasdebrasilia</span><span>brunoduarte40.github.io/promessasdebrasilia</span></div></div><div class="card claro" id="cg"><div class="selo" style="margin-bottom:34px">o que nós checamos</div><div class="titulo">Fomos atrás<br>das 582, uma a uma</div><div class="sub">No canal que cada candidatura declarou ao próprio TSE, em 13 de setembro.</div><div class="cresce" style="overflow:hidden;margin-top:34px"><div class="grp"><span class="grp-n">63</span><span class="grp-t">o site declarado ao TSE traz proposta</span></div><div class="grp"><span class="grp-n">66</span><span class="grp-t">o site declarado abriu e não traz nenhuma</span></div><div class="grp"><span class="grp-n">50</span><span class="grp-t">o site declarado não abriu quando visitamos</span></div><div class="grp"><span class="grp-n">333</span><span class="grp-t">declararam só rede social, nenhum site</span></div><div class="grp"><span class="grp-n">70</span><span class="grp-t">não declararam canal nenhum ao TSE</span></div></div><div class="nota">Nenhuma proposta foi deduzida de partido, trajetória ou discurso. Onde não havia, o campo ficou vazio — e a página diz que ficou.</div><div style="height:26px"></div><div class="rodape"><span>@promessasdebrasilia</span><span>brunoduarte40.github.io/promessasdebrasilia</span></div></div><div class="card claro" id="c2"><div class="selo" style="margin-bottom:38px">o convite</div><div class="titulo">Achamos que falta<br>a sua proposta?</div><div class="sub">Manda. Publicamos inteira, com a sua fonte, no mesmo dia — e o seu nome sai desta conta.</div><div class="vazio"><div class="vz-item"><div class="vz-num">1</div><div class="vz-tx">Quais são as suas três prioridades para o DF?</div></div><div class="vz-item"><div class="vz-num">2</div><div class="vz-tx">Que projeto você apresenta no primeiro ano?</div></div><div class="vz-item"><div class="vz-num">3</div><div class="vz-tx">De onde sai o dinheiro para isso?</div></div><div class="vz-item"><div class="vz-num">4</div><div class="vz-tx">Qual posição você assume nos temas em disputa?</div></div></div><div class="nota">Aberto desde 15 de setembro, para as 582, sem prazo para fechar. O formulário está na aba Metodologia da página.</div><div style="height:34px"></div><div class="rodape"><span>@promessasdebrasilia</span><span>brunoduarte40.github.io/promessasdebrasilia</span></div></div><div class="card claro" id="c3"><div class="selo" style="margin-bottom:34px">o silêncio não tem lado</div><div class="titulo">Candidaturas sem<br>proposta, por partido</div><div class="cresce" style="overflow:hidden"><div class="barras"><div class="bar"><span class="bar-p">DC</span><span class="bar-t"><span class="bar-f" style="width:100.0%"></span></span><span class="bar-v">34/34</span></div><div class="bar"><span class="bar-p">AVANTE</span><span class="bar-t"><span class="bar-f" style="width:100.0%"></span></span><span class="bar-v">34/34</span></div><div class="bar"><span class="bar-p">DEMOCRATA</span><span class="bar-t"><span class="bar-f" style="width:100.0%"></span></span><span class="bar-v">33/33</span></div><div class="bar"><span class="bar-p">PSDB</span><span class="bar-t"><span class="bar-f" style="width:100.0%"></span></span><span class="bar-v">32/32</span></div><div class="bar"><span class="bar-p">SOLIDARIEDADE</span><span class="bar-t"><span class="bar-f" style="width:95.8%"></span></span><span class="bar-v">23/24</span></div><div class="bar"><span class="bar-p">MOBILIZA</span><span class="bar-t"><span class="bar-f" style="width:94.1%"></span></span><span class="bar-v">32/34</span></div><div class="bar"><span class="bar-p">PDT</span><span class="bar-t"><span class="bar-f" style="width:94.1%"></span></span><span class="bar-v">32/34</span></div><div class="bar"><span class="bar-p">NOVO</span><span class="bar-t"><span class="bar-f" style="width:91.2%"></span></span><span class="bar-v">31/34</span></div><div class="bar"><span class="bar-p">PP</span><span class="bar-t"><span class="bar-f" style="width:88.2%"></span></span><span class="bar-v">15/17</span></div><div class="bar"><span class="bar-p">PSD</span><span class="bar-t"><span class="bar-f" style="width:87.9%"></span></span><span class="bar-v">29/33</span></div><div class="bar"><span class="bar-p">PODE</span><span class="bar-t"><span class="bar-f" style="width:87.9%"></span></span><span class="bar-v">29/33</span></div><div class="bar"><span class="bar-p">MDB</span><span class="bar-t"><span class="bar-f" style="width:85.7%"></span></span><span class="bar-v">24/28</span></div><div class="bar"><span class="bar-p">PSOL</span><span class="bar-t"><span class="bar-f" style="width:81.8%"></span></span><span class="bar-v">18/22</span></div><div class="bar"><span class="bar-p">PT</span><span class="bar-t"><span class="bar-f" style="width:80.8%"></span></span><span class="bar-v">21/26</span></div><div class="bar"><span class="bar-p">PSB</span><span class="bar-t"><span class="bar-f" style="width:80.0%"></span></span><span class="bar-v">20/25</span></div><div class="bar"><span class="bar-p">PL</span><span class="bar-t"><span class="bar-f" style="width:79.4%"></span></span><span class="bar-v">27/34</span></div><div class="bar"><span class="bar-p">MISSÃO</span><span class="bar-t"><span class="bar-f" style="width:78.9%"></span></span><span class="bar-v">15/19</span></div><div class="bar"><span class="bar-p">UNIÃO</span><span class="bar-t"><span class="bar-f" style="width:76.5%"></span></span><span class="bar-v">13/17</span></div><div class="bar"><span class="bar-p">REPUBLICANOS</span><span class="bar-t"><span class="bar-f" style="width:75.0%"></span></span><span class="bar-v">24/32</span></div></div></div><div class="nota">Legendas com 15 ou mais candidaturas na urna. Abaixo disso a porcentagem diz mais sobre o tamanho do partido do que sobre o silêncio.</div><div style="height:26px"></div><div class="rodape"><span>@promessasdebrasilia</span><span>brunoduarte40.github.io/promessasdebrasilia</span></div></div><div class="card claro" id="c4"><div class="selo" style="margin-bottom:34px">como isto foi feito</div><div class="titulo">Confira você<br>mesmo</div><div class="met"><div class="met-l"><span class="met-k">onde olhamos</span><span class="met-v">no canal que cada candidatura declarou ao TSE — é o endereço que ela mesma informou como sendo o dela.</span></div><div class="met-l"><span class="met-k">quando</span><span class="met-v">13 de setembro. Site que subiu depois disso ainda não entrou; é só avisar.</span></div><div class="met-l"><span class="met-k">sem proposta</span><span class="met-v">quer dizer que não achamos proposta escrita ali naquele dia. Não quer dizer que a candidatura não tenha uma.</span></div><div class="met-l"><span class="met-k">nada foi deduzido</span><span class="met-v">de partido, de trajetória ou do que "seria coerente". Onde não havia fonte, o campo ficou vazio.</span></div><div class="met-l"><span class="met-k">está errado?</span><span class="met-v">manda a proposta pelo formulário da aba Metodologia. Publico inteira, com a fonte, no mesmo dia.</span></div></div><div class="caixa"><p>Todas as 582 candidaturas, uma a uma:</p><span>brunoduarte40.github.io/promessasdebrasilia</span></div><div style="height:34px"></div><div class="rodape"><span>@promessasdebrasilia</span><span>por Bruno Duarte · pessoa física</span></div></div><div class="card story escuro" id="story"><div class="selo">placar do silêncio · 15 de setembro</div><div class="cresce" style="display:flex;flex-direction:column;justify-content:center;gap:46px"><div class="numerao">519</div><div class="frase">das 582 candidaturas a deputado no DF <em>não publicaram proposta nenhuma</em>.</div><div class="escopo">no canal que elas mesmas declararam ao TSE, conferido em 13 de setembro</div></div><div class="linhas" style="margin-bottom:40px"><div><div class="ln-n">63</div><div class="ln-t">têm proposta no site que declararam</div></div><div><div class="ln-n">116</div><div class="ln-t">declararam site, e ele não traz proposta</div></div><div><div class="ln-n">403</div><div class="ln-t">não declararam site de campanha</div></div></div><div class="rodape"><span>@promessasdebrasilia</span><span>brunoduarte40.github.io/promessasdebrasilia</span></div></div></body></html>

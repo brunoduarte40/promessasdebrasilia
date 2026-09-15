@@ -1,0 +1,26 @@
+{
+  "name": "promessasdebrasilia",
+  "version": "1.0.0",
+  "description": "**O que cada candidatura prometeu ao Distrito Federal nas eleições de 2026, com a fonte de cada promessa.**",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/brunoduarte40/promessasdebrasilia.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/brunoduarte40/promessasdebrasilia/issues"
+  },
+  "homepage": "https://github.com/brunoduarte40/promessasdebrasilia#readme",
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

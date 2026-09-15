@@ -74,14 +74,20 @@ function hojeISO() {
 }
 
 /* ── 1. a base ─────────────────────────────────────────────────────────── */
-if (!existsSync("deputados.js")) {
-  console.error("não achei deputados.js. Rode da raiz do projeto.");
+/* Os dados podem estar na raiz OU só em docs/ — é o caso de quem clonou o
+   repositório, onde a cópia publicada é a que existe. Mesma regra que o
+   montar-site.mjs já aplica ("já estava em docs/, mantido"), e é de docs/ que
+   o gerar-paginas.mjs lê. Procurar num lugar só quebrava numa máquina e
+   funcionava na outra, que é o pior tipo de erro. */
+const BASE = ["deputados.js", "docs/deputados.js"].find((p) => existsSync(p));
+if (!BASE) {
+  console.error("não achei deputados.js nem em ./ nem em docs/. Rode da raiz do projeto.");
   process.exit(1);
 }
 const win = {};
-new Function("window", await readFile("deputados.js", "utf8"))(win);
+new Function("window", await readFile(BASE, "utf8"))(win);
 if (!win.DEPUTADOS || !Array.isArray(win.DEPUTADOS.candidatos)) {
-  console.error("deputados.js não expôs window.DEPUTADOS.candidatos — base corrompida?");
+  console.error(BASE + " não expôs window.DEPUTADOS.candidatos — base corrompida?");
   process.exit(1);
 }
 const TODOS = win.DEPUTADOS.candidatos;
@@ -486,8 +492,19 @@ const ALVOS = [
   ["story", "story.png"],
 ];
 
+/* Dois pacotes servem: playwright (traz navegador próprio) e playwright-core
+   (não traz, mas dirige o Chrome/Edge que já está na máquina). Tenta os dois.
+
+   E guarda o erro de verdade em vez de engolir: "não está instalado" é um
+   palpite, e palpite manda a pessoa rodar npm install de novo achando que
+   resolve. O motivo real pode ser outro — versão de Node, instalação pela
+   metade, pacote que não resolve no Windows. */
 let chromium = null;
-try { ({ chromium } = await import("playwright")); } catch { /* segue sem */ }
+const errosImport = [];
+for (const pacote of ["playwright", "playwright-core"]) {
+  try { ({ chromium } = await import(pacote)); break; }
+  catch (e) { errosImport.push("  " + pacote + ": " + String(e.message).split("\n")[0]); }
+}
 
 /* Três caminhos até um navegador, do mais provável ao mais teimoso: o que o
    Playwright baixa, o Chrome que já está na máquina (poupa 150 MB de download)
@@ -510,10 +527,13 @@ async function abrirNavegador() {
 }
 
 if (!chromium) {
-  console.log("Playwright não está instalado — gerei só o HTML.");
-  console.log("Para as imagens:  npm install  &&  npx playwright install chromium");
-  console.log("\nEnquanto isso, " + SAIDA + "/placar.html abre no navegador e dá para "
-    + "capturar a tela de cada card.");
+  console.log("Não consegui carregar o Playwright — gerei só o HTML.");
+  console.log("O motivo, com todas as letras:");
+  console.log(errosImport.join("\n"));
+  console.log("\nNode " + process.version + " · rodando de " + process.cwd());
+  console.log("\nTente:  npm install playwright");
+  console.log("Se insistir, " + SAIDA + "/placar.html abre no navegador com os cinco");
+  console.log("cards em tamanho real — dá para capturar a tela de cada um.");
 } else {
   const { nav, via, erros } = await abrirNavegador();
   if (!nav) {
