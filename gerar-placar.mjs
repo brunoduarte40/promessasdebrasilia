@@ -27,6 +27,11 @@
 
 import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { contar, porPartido, temProposta } from "./grupos.mjs";
+import {
+  C, SANS, MONO, CORTE, MARGEM, amb, CSS_AMBIENTE,
+  MEDIR_TRANSBORDO, MEDIR_ZONA_SEGURA, relatarProblemas,
+  carregarChromium, abrirNavegador,
+} from "./ambiente.mjs";
 import { existsSync } from "node:fs";
 
 const SITE   = "https://brunoduarte40.github.io/promessasdebrasilia/";
@@ -41,15 +46,7 @@ const ARQ    = "questionario.json";
    33% e o gráfico mente. */
 const MIN_PARTIDO = 15;
 
-/* ── paleta, a mesma do site ───────────────────────────────────────────── */
-const C = {
-  ink: "#141A20", ink2: "#57646F", ink3: "#626F7A",
-  papel: "#FAFAF8", linha: "#E4E4E0",
-  verde: "#0A7A45", verdeEsc: "#075C34", verdeSuave: "#E3F1E9",
-  claro: "#E7EDF2", claro2: "#9AA8B4", verdeClaro: "#43BE81",
-};
-const SANS = '"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif';
-const MONO = '"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace';
+const N_CARDS = 7;
 
 /* ── utilidades ────────────────────────────────────────────────────────── */
 const esc = (s) => String(s == null ? "" : s)
@@ -92,6 +89,27 @@ if (!win.DEPUTADOS || !Array.isArray(win.DEPUTADOS.candidatos)) {
 }
 const TODOS = win.DEPUTADOS.candidatos;
 const URNA  = TODOS.filter((c) => c.na_urna);
+
+/* O placar mede as candidaturas a DEPUTADO, que é onde está o silêncio. Mas o
+   site cobre governo e Senado também, e a legenda termina mandando a pessoa
+   para lá — então o número do convite final tem de ser o da página inteira,
+   não o do recorte. Dizer "todas as 582" num link que abre 626 é errar na
+   única coisa que a página vende: a conta bater. */
+const BASE_MAJ = ["dados.js", "docs/dados.js"].find((p) => existsSync(p));
+let SITE_TOTAL = null;
+if (BASE_MAJ) {
+  const w2 = {};
+  new Function("window", await readFile(BASE_MAJ, "utf8"))(w2);
+  const D = w2.DADOS;
+  if (D && Array.isArray(D.governo) && Array.isArray(D.senado)) {
+    SITE_TOTAL = D.governo.length + D.senado.length + TODOS.length;
+  }
+}
+if (!SITE_TOTAL) {
+  console.error("não consegui contar as candidaturas do site (dados.js não achado ou sem\n"
+    + "DADOS.governo/DADOS.senado). A legenda terminaria com um número errado no link.");
+  process.exit(1);
+}
 
 /* ── 2. o registro do questionário ─────────────────────────────────────── */
 /* Se não existir, nasce um modelo preenchível. É de propósito que o script
@@ -162,7 +180,22 @@ const N = {
   respondeu: responderam.length,
   silencio: silencio.length,
   semCanal: URNA.filter((c) => !c.sites || !c.sites.length).length,
+  federal: URNA.filter((c) => c.cargo === "federal").length,
+  distrital: URNA.filter((c) => c.cargo === "distrital").length,
 };
+
+/* O recorte é "deputado" e isso são DOIS cargos: federal e distrital. Dizer só
+   "deputado" não é errado, mas deixa o leitor supor que é um só — e a primeira
+   pessoa a conferir vai achar essa brecha. Então a legenda abre os dois.
+   Sai da base, nunca digitado: no dia em que uma candidatura for indeferida, a
+   soma anda sozinha. E se um dia aparecer um terceiro cargo aqui dentro, o
+   script para, porque a frase "federal e distrital" passaria a mentir. */
+if (N.federal + N.distrital !== N.urna) {
+  const cargos = [...new Set(URNA.map((c) => c.cargo))];
+  console.error("deputados.js traz cargo além de federal/distrital: " + cargos.join(", ")
+    + ".\nA legenda diz \"federal e distrital\" e passaria a excluir alguém em silêncio.");
+  process.exit(1);
+}
 
 /* ── os cinco grupos ───────────────────────────────────────────────────── */
 /* A conta vem de grupos.mjs, o mesmo arquivo que alimenta a página do convite
@@ -194,27 +227,20 @@ const DATA_CARD = porExtenso(hojeISO());
 const VISITA = porExtenso(reg.visitamos);
 const CONVITE = porExtenso(reg.convite);
 
-const CSS = `
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#888;font-family:${SANS};-webkit-font-smoothing:antialiased}
-.card{width:1080px;height:1350px;padding:84px;display:flex;flex-direction:column;
-  position:relative;overflow:hidden}
-/* O story tem folga extra em cima e embaixo porque o Instagram desenha por cima:
-   a barra do perfil no topo e a caixa de resposta no pé. Conteúdo colado na
-   borda some debaixo da interface. */
-.story{width:1080px;height:1920px;padding:150px 84px 250px}
-.escuro{background:${C.ink};color:${C.claro}}
-.claro{background:${C.papel};color:${C.ink}}
-.selo{font-family:${MONO};font-size:25px;letter-spacing:.14em;text-transform:uppercase;
-  font-weight:600}
-.escuro .selo{color:${C.verdeClaro}}
-.claro .selo{color:${C.verde}}
+const CSS = CSS_AMBIENTE + `
+/* A sombra não é efeito: o número agora cai sobre um céu que tem variação, e
+   sem ela a borda dele encosta no gradiente e perde o corte. */
 .numerao{font-size:330px;line-height:.82;font-weight:800;letter-spacing:-.045em;
-  font-variant-numeric:tabular-nums;color:#fff}
+  font-variant-numeric:tabular-nums;color:#fff;text-shadow:0 0 90px rgba(0,0,0,.45)}
 .story .numerao{font-size:400px}
 .frase{font-size:63px;line-height:1.17;font-weight:600;letter-spacing:-.02em;max-width:16ch}
 .story .frase{font-size:72px}
 .frase em{font-style:normal;color:${C.verdeClaro}}
+.frase-topo{font-size:46px;line-height:1.25;font-weight:500;color:${C.claro2};max-width:22ch}
+.story .frase-topo{font-size:54px}
+.frase-pe{font-size:56px;line-height:1.2;font-weight:600;letter-spacing:-.02em;
+  color:${C.verdeClaro}}
+.story .frase-pe{font-size:64px}
 /* O escopo anda junto do número, não no rodapé: é ele que diz o que exatamente
    foi verificado, e quem só olha o card tem de ler os dois na mesma batida. */
 .escopo{font-family:${MONO};font-size:25px;line-height:1.45;color:${C.claro2};
@@ -226,13 +252,8 @@ body{background:#888;font-family:${SANS};-webkit-font-smoothing:antialiased}
 .ln-n{font-family:${MONO};font-size:52px;font-weight:600;line-height:1;
   font-variant-numeric:tabular-nums}
 .ln-t{font-size:23px;line-height:1.3;color:${C.claro2};margin-top:12px;max-width:15ch}
-.rodape{font-family:${MONO};font-size:21px;letter-spacing:.02em;display:flex;
-  justify-content:space-between;align-items:flex-end;gap:20px}
-.escuro .rodape{color:${C.claro2}}
-.claro .rodape{color:${C.ink3}}
 .titulo{font-size:58px;line-height:1.1;font-weight:700;letter-spacing:-.025em}
 .sub{font-size:27px;line-height:1.45;color:${C.ink2};margin-top:20px;max-width:40ch}
-.cresce{flex:1;min-height:0}
 .vazio{flex:1;display:flex;flex-direction:column;justify-content:center;gap:26px}
 .vz-item{display:flex;gap:22px;align-items:flex-start}
 .vz-num{font-family:${MONO};font-size:27px;font-weight:600;color:${C.verde};
@@ -256,6 +277,9 @@ body{background:#888;font-family:${SANS};-webkit-font-smoothing:antialiased}
 .grp-n{font-family:${MONO};font-size:44px;font-weight:600;color:${C.verde};
   font-variant-numeric:tabular-nums;flex:none;width:118px;text-align:right}
 .grp-t{font-size:28px;line-height:1.3;flex:1}
+.def-sim{font-size:40px;line-height:1.3;font-weight:500;max-width:24ch}
+.def-nao{font-size:40px;line-height:1.3;font-weight:700;color:${C.verdeEsc};
+  max-width:24ch;margin-top:30px;padding-top:30px;border-top:3px solid ${C.verde}}
 .barras{display:flex;flex-direction:column;gap:0;margin-top:26px}
 .bar{display:flex;align-items:center;gap:16px;padding:6px 0}
 .bar-p{font-family:${MONO};font-size:22px;line-height:1.15;font-weight:600;width:178px;
@@ -264,6 +288,15 @@ body{background:#888;font-family:${SANS};-webkit-font-smoothing:antialiased}
 .bar-f{position:absolute;inset:0 auto 0 0;background:${C.verde};border-radius:1px}
 .bar-v{font-family:${MONO};font-size:22px;font-weight:600;width:112px;flex:none;
   text-align:right;font-variant-numeric:tabular-nums;color:${C.ink2}}
+/* Com a zona segura, a altura útil caiu 132px e as 19 legendas não cabiam mais.
+   Apertar a barra é melhor que subir o MIN_PARTIDO: num card que se chama "o
+   silêncio não tem lado", partido que some é o argumento indo junto. E o
+   aperto é automático, então no dia em que entrar a vigésima ele se resolve
+   sozinho em vez de estourar. */
+.barras.compacta .bar{padding:4px 0}
+.barras.compacta .bar-t{height:20px}
+.barras.compacta .bar-p{font-size:20px}
+.barras.compacta .bar-v{font-size:20px}
 .nota{font-size:22px;line-height:1.45;color:${C.ink3};margin-top:26px;max-width:42ch}
 .met{display:flex;flex-direction:column;gap:22px;margin-top:38px}
 .met-l{display:flex;gap:20px;align-items:flex-start}
@@ -282,30 +315,48 @@ function rodape(escuro) {
     + '<span>' + esc(SITE_C) + '</span></div>';
 }
 
-/* Card 1 — o número. É o único que precisa parar o dedo de alguém rolando. */
-function card1(story) {
+/* CAPA — o único card que precisa parar o dedo de alguém rolando.
+ *
+ * A versão anterior abria com o 519, que é a conclusão. Esta abre com a
+ * busca e para no achado: "procurei nas 582, achei 63". Mesma informação,
+ * ordem invertida — e o buraco se abre sozinho na cabeça de quem lê, porque
+ * 63 é pequeno demais e a pessoa quer saber o que houve com o resto.
+ *
+ * Não é truque de curiosidade: é contar na ordem em que aconteceu. Numa
+ * página cuja moeda é não exagerar, o ângulo tem de vir da especificidade e
+ * nunca de esconder o final.
+ *
+ * E uma ideia só no card, que é a regra que a versão antiga quebrava: lá
+ * tinha o número, a frase, o escopo e mais três estatísticas embaixo. */
+function capa(story) {
   const cls = story ? "card story escuro" : "card escuro";
-  return '<div class="' + cls + '" id="' + (story ? "story" : "c1") + '">'
+  return '<div class="' + cls + '" id="' + (story ? "story" : "c0") + '">'
+    + amb("escuro", story ? null : 1, N_CARDS)
     + '<div class="selo">placar do silêncio · ' + esc(DATA_CARD) + '</div>'
-    + '<div class="cresce" style="display:flex;flex-direction:column;justify-content:center;gap:46px">'
+    + '<div class="cresce" style="display:flex;flex-direction:column;justify-content:center;gap:34px">'
+      + '<div class="frase-topo">Procurei a proposta dos ' + N.urna
+        + ' candidatos a deputado federal e distrital do DF.</div>'
+      + '<div class="numerao">' + N.proposta + '</div>'
+      + '<div class="frase-pe">Foi o que achei.</div>'
+    + '</div>'
+    + rodape(true) + '</div>';
+}
+
+/* O 519 — agora a RESPOSTA, não a abertura. É aqui que ele bate mais forte,
+   porque chega como resolução de uma pergunta que a capa deixou aberta. */
+function card1() {
+  return '<div class="card escuro" id="c1">'
+    + amb("escuro", 2, N_CARDS)
+    + '<div class="selo">os outros</div>'
+    + '<div class="cresce" style="display:flex;flex-direction:column;justify-content:center;gap:40px">'
       + '<div class="numerao">' + N.silencio + '</div>'
       /* "Não disseram o que pretendem fazer" é mais forte e é o que dá vontade de
          escrever. Só que é uma afirmação sobre o mundo, e o que foi verificado é
          menor: o canal que a própria candidatura declarou ao TSE não traz proposta.
          A frase menor é a que aguenta uma notificação. */
-      + '<div class="frase">das ' + N.urna + ' candidaturas a deputado no DF '
-        + '<em>não publicaram proposta nenhuma</em>.</div>'
+      + '<div class="frase">não publicaram <em>proposta nenhuma</em>.</div>'
       + '<div class="escopo">no canal que elas mesmas declararam ao TSE, '
         + 'conferido em ' + esc(VISITA) + '</div>'
-    + '</div>'
-    + '<div class="linhas" style="margin-bottom:40px">'
-      /* Os três somam 582 de propósito: quem confere, fecha a conta sozinho. */
-      + '<div><div class="ln-n">' + N.proposta + '</div>'
-        + '<div class="ln-t">têm proposta no site que declararam</div></div>'
-      + '<div><div class="ln-n">' + (G.vazio + G.quebrado) + '</div>'
-        + '<div class="ln-t">declararam site, e ele não traz proposta</div></div>'
-      + '<div><div class="ln-n">' + (G.so_rede + G.nada) + '</div>'
-        + '<div class="ln-t">não declararam site de campanha</div></div>'
     + '</div>'
     + rodape(true) + '</div>';
 }
@@ -322,6 +373,7 @@ function cardGrupos() {
     '<div class="grp"><span class="grp-n">' + g.n + '</span>'
     + '<span class="grp-t">' + esc(g.curta) + '</span></div>').join("");
   return '<div class="card claro" id="cg">'
+    + amb("claro", 3, N_CARDS)
     + '<div class="selo" style="margin-bottom:34px">o que nós checamos</div>'
     + '<div class="titulo">Fomos atrás<br>das ' + N.urna + ', uma a uma</div>'
     + '<div class="sub">No canal que cada candidatura declarou ao próprio TSE, '
@@ -375,6 +427,7 @@ function card2() {
           + ' — a lista completa está na página.</div>' : "");
   }
   return '<div class="card claro" id="c2">'
+    + amb("claro", 6, N_CARDS)
     + '<div class="selo" style="margin-bottom:38px">'
       + (responderam.length ? "quem mandou" : "o convite") + '</div>'
     + miolo + '<div style="height:34px"></div>' + rodape(false) + '</div>';
@@ -391,42 +444,50 @@ function card3() {
       + (p.pct / max * 100).toFixed(1) + '%"></span></span>'
     + '<span class="bar-v">' + p.calados + '/' + p.total + '</span></div>').join("");
   return '<div class="card claro" id="c3">'
+    + amb("claro", 4, N_CARDS)
     + '<div class="selo" style="margin-bottom:34px">o silêncio não tem lado</div>'
     + '<div class="titulo">Candidaturas sem<br>proposta, por partido</div>'
-    + '<div class="cresce" style="overflow:hidden"><div class="barras">' + barras + '</div></div>'
+    + '<div class="cresce" style="overflow:hidden"><div class="barras'
+      + (PARTIDOS.length > 16 ? " compacta" : "") + '">' + barras + '</div></div>'
     + '<div class="nota">Legendas com ' + MIN_PARTIDO + ' ou mais candidaturas na urna. '
       + 'Abaixo disso a porcentagem diz mais sobre o tamanho do partido do que sobre o silêncio.</div>'
     + '<div style="height:26px"></div>' + rodape(false) + '</div>';
 }
 
-/* Card 4 — como conferir. O card que transforma acusação em dado: diz quando
-   foi enviado, por onde, com que prazo, e onde a pessoa confere sozinha. */
-function card4() {
+/* A DEFINIÇÃO, sozinha num card. Antes ela era a terceira de cinco linhas de
+   metodologia e passava batida — sendo que é a frase que separa um dado de uma
+   acusação, e a que decide se isto aguenta uma notificação extrajudicial.
+   Card próprio, com ar em volta. */
+function cardDefinicao() {
   return '<div class="card claro" id="c4">'
-    + '<div class="selo" style="margin-bottom:34px">como isto foi feito</div>'
-    + '<div class="titulo">Confira você<br>mesmo</div>'
-    + '<div class="met">'
-      + '<div class="met-l"><span class="met-k">onde olhamos</span>'
-        + '<span class="met-v">no canal que cada candidatura declarou ao TSE — é o '
-        + 'endereço que ela mesma informou como sendo o dela.</span></div>'
-      + '<div class="met-l"><span class="met-k">quando</span>'
-        + '<span class="met-v">' + esc(VISITA) + '. Site que subiu depois disso ainda '
-        + 'não entrou; é só avisar.</span></div>'
-      /* A definição que impede o card de virar xingamento: a afirmação é sobre um
-         documento não encontrado num endereço, numa data. Não é juízo sobre ninguém. */
-      + '<div class="met-l"><span class="met-k">sem proposta</span>'
-        + '<span class="met-v">quer dizer que não achamos proposta escrita ali naquele '
-        + 'dia. Não quer dizer que a candidatura não tenha uma.</span></div>'
-      + '<div class="met-l"><span class="met-k">nada foi deduzido</span>'
-        + '<span class="met-v">de partido, de trajetória ou do que "seria coerente". '
-        + 'Onde não havia fonte, o campo ficou vazio.</span></div>'
-      + '<div class="met-l"><span class="met-k">está errado?</span>'
-        + '<span class="met-v">manda a proposta pelo formulário da aba Metodologia. '
-        + 'Publico inteira, com a fonte, no mesmo dia.</span></div>'
+    + amb("claro", 5, N_CARDS)
+    + '<div class="selo" style="margin-bottom:34px">o que isto quer dizer</div>'
+    + '<div class="titulo">&ldquo;Sem proposta&rdquo;<br>quer dizer o quê?</div>'
+    + '<div class="cresce" style="display:flex;flex-direction:column;justify-content:center">'
+      + '<div class="def-sim">Que eu não encontrei proposta escrita no endereço que a '
+        + 'candidatura declarou ao TSE, no dia ' + esc(VISITA) + '.</div>'
+      + '<div class="def-nao">Não quer dizer que ela não tenha uma.</div>'
     + '</div>'
-    + '<div class="caixa"><p>Todas as ' + N.urna + ' candidaturas, uma a uma:</p>'
+    + '<div class="nota">Nada foi deduzido de partido, de trajetória ou do que &ldquo;seria '
+      + 'coerente&rdquo;. Onde não havia fonte, o campo ficou vazio — e a página diz que ficou.</div>'
+    + '<div style="height:26px"></div>' + rodape(false) + '</div>';
+}
+
+/* O ÚLTIMO CARD entrega a coisa em vez de pedir seguidor. Quem chegou até aqui
+   quer a ferramenta; o endereço é o maior elemento da tela. */
+function cardConferir() {
+  return '<div class="card claro" id="c5">'
+    + amb("claro", 7, N_CARDS)
+    + '<div class="selo" style="margin-bottom:34px">confira você mesmo</div>'
+    + '<div class="titulo">As ' + SITE_TOTAL + ' candidaturas<br>do DF, uma a uma</div>'
+    + '<div class="sub">Governo, Senado e deputado. Cada informação com a fonte ao lado, '
+      + 'e o código que gera tudo isso é público.</div>'
+    + '<div class="cresce"></div>'
+    + '<div class="caixa"><p>Está tudo aqui:</p>'
       + '<span>' + esc(SITE_C) + '</span></div>'
-    + '<div style="height:34px"></div>'
+    + '<div class="nota" style="margin-top:22px">Achou um erro? Manda com a fonte pelo '
+      + 'formulário da aba Metodologia — a correção sai no mesmo dia, com a data à vista.</div>'
+    + '<div style="height:26px"></div>'
     + '<div class="rodape"><span>' + esc(PERFIL) + '</span>'
       + '<span>por ' + esc(AUTOR) + ' · pessoa física</span></div>'
     + '</div>';
@@ -434,7 +495,8 @@ function card4() {
 
 const HTML = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">'
   + '<title>placar — promessas de Brasília</title><style>' + CSS + '</style></head>'
-  + '<body>' + card1(false) + cardGrupos() + card2() + card3() + card4() + card1(true)
+  + '<body>' + capa(false) + card1() + cardGrupos() + card3() + cardDefinicao()
+  + card2() + cardConferir() + capa(true)
   + '</body></html>';
 
 /* ── 6. gravar ─────────────────────────────────────────────────────────── */
@@ -448,47 +510,113 @@ await writeFile(SAIDA + "/placar.html", HTML);
 /* Cada frase daqui é checável contra a base. A tentação é escrever "519 não têm
    proposta" — mais curto e mais forte. Só que não é o que foi verificado: o que
    foi verificado é que não achamos proposta no endereço que cada uma declarou ao
-   TSE, num dia determinado. A frase mais fraca é a que se sustenta. */
+   TSE, num dia determinado. A frase mais fraca é a que se sustenta.
+ *
+ * ── por que a legenda tem esta forma ──────────────────────────────────────
+ *
+ * O Instagram corta a legenda depois de duas linhas, no "… mais". A versão
+ * anterior gastava essas duas linhas explicando o método e o número só
+ * aparecia depois do corte — ou seja, para quem não tocou em "mais", o post
+ * não dizia nada. Agora o achado abre e o método vem logo atrás.
+ *
+ * O sinal que hoje mais empurra um post para quem não segue a conta não é
+ * curtida: é ENVIO — o número de vezes que alguém manda aquilo no direct.
+ * Então a legenda pede envio, e pede com endereço, porque "compartilha aí"
+ * não move ninguém. Aqui há dois destinatários óbvios e específicos: quem
+ * ainda não decidiu o voto, e o próprio candidato — que é, aliás, o motor do
+ * modelo do convite: cobrança de eleitor pesa mais que cobrança minha.
+ *
+ * O que NÃO entrou, de propósito:
+ *   · "comenta LINK que eu mando no direct" — precisa de robô de terceiro
+ *     para responder, e o art. 57-B §3º da Lei 9.504/97 proíbe ferramenta não
+ *     fornecida pela plataforma para alterar alcance de propaganda eleitoral.
+ *     Fora que a página não é fechada: fingir portão onde não tem é teatro.
+ *   · "qual te surpreendeu mais?" e afins — pergunta sobre candidatura em
+ *     período de campanha cheira a enquete, vedada pelo art. 33 §5º.
+ *   · indignação ("que VERGONHA!") — funciona e destrói a única coisa que
+ *     esta página tem para vender, que é não ter lado.
+ *   · monte de hashtag — a plataforma despriorizou e limitou hashtag, e quem
+ *     lê a legenda para busca são as PALAVRAS. Daí "Eleições 2026",
+ *     "Distrito Federal" e "Brasília" estarem escritas por extenso no pé.
+ *
+ * O pedido de correção no fim não é humildade decorativa: é o convite que
+ * gera comentário sem precisar de isca, e é a jogada mais forte que uma
+ * página de checagem tem — convidar o público a provar que ela errou. */
 const legenda = [
-  "Fui atrás das " + N.urna + " candidaturas a deputado do DF, uma a uma, para achar o que cada "
-    + "uma promete. Em " + VISITA + ", procurei no canal que a própria candidatura declarou ao TSE.",
-  "",
+  /* as duas linhas que aparecem antes do "… mais" */
+  /* "deputado" sozinho não está errado — os " + N.urna + " somam os dois cargos —,
+     mas deixa o leitor supor que é só um deles. Nomear os dois custa onze
+     caracteres e fecha a brecha. */
+  N.urna + " candidatos a deputado federal e distrital no DF.",
   "Achei proposta escrita em " + N.proposta + ".",
   "",
-  G.vazio + " declararam um site que está no ar e não traz proposta nenhuma. "
-    + G.quebrado + " declararam um site que nem abriu. " + G.so_rede + " não declararam site, só rede social. "
-    + "E " + G.nada + " não declararam canal nenhum — nem site, nem rede.",
+  "Fui atrás de todos, um a um — " + N.federal + " candidatos a federal e " + N.distrital
+    + " a distrital. Não perguntei a ninguém: procurei no canal que a própria candidatura "
+    + "declarou ao TSE, em " + VISITA + ".",
   "",
-  "Some: dá " + N.urna + ". A conta fecha e você pode conferir cada linha.",
+  "O resto:",
   "",
-  "Um card mostra isso por partido. Não tem lado: está em todos, da situação à oposição.",
+  G.vazio + " declararam um site que está no ar e não traz proposta nenhuma.",
+  G.quebrado + " declararam um site que nem abriu.",
+  G.so_rede + " não declararam site, só rede social.",
+  G.nada + " não declararam canal nenhum — nem site, nem rede.",
   "",
-  "IMPORTANTE, e vale ler com atenção: \"sem proposta\" aqui quer dizer que não encontrei "
-    + "proposta escrita naquele endereço naquele dia. Não quer dizer que a candidatura não tenha uma.",
+  "Some: dá " + N.urna + ". A conta fecha, e você confere linha por linha.",
   "",
-  "Então o convite, aberto desde " + CONVITE + " e igual para as " + N.urna + ": se você é candidata ou "
-    + "candidato e acha que falta a sua, manda. Publico inteira, com a sua fonte, no mesmo dia, "
+  "Tem card mostrando isso por partido. Não tem lado nenhum: está em todos, da situação "
+    + "à oposição.",
+  "",
+  "LEIA ESTA PARTE: \"sem proposta\" aqui quer dizer que eu não encontrei proposta escrita "
+    + "naquele endereço naquele dia. NÃO quer dizer que a candidatura não tenha uma.",
+  "",
+  "Por isso o convite, aberto desde " + CONVITE + " e igual para as " + N.urna + ": é candidata ou "
+    + "candidato e acha que falta a sua? Manda. Publico inteira, com a sua fonte, no mesmo dia, "
     + "sem corte e sem comentário meu. O formulário está na aba Metodologia da página.",
-  "",
+  N.respondeu === 0 ? "" : "",
   N.respondeu === 0 ? "" : (N.respondeu === 1
     ? "Uma já mandou, e está publicada."
     : N.respondeu + " já mandaram, e estão publicadas."),
-  N.respondeu === 0 ? "" : "",
-  "Todas as " + N.urna + " candidaturas, uma a uma, com a fonte de cada informação:",
+  "",
+  "E se você não é candidato:",
+  "",
+  "→ Manda este post para quem ainda não decidiu o voto para deputado.",
+  "→ Acha o seu candidato na lista e manda para ele. Cobrança de eleitor pesa mais que a minha.",
+  "",
+  "Achou proposta de alguém que eu marquei como sem? Comenta aqui com o link. Eu corrijo, "
+    + "publico a correção e ponho a data à vista. Errar e consertar em público é parte do combinado.",
+  "",
+  "As " + SITE_TOTAL + " candidaturas do DF — governo, Senado e deputado — uma a uma, com a "
+    + "fonte de cada informação:",
   SITE,
   "",
-  "Página independente, feita por " + AUTOR + ", pessoa física, em Brasília. Sem vínculo com "
-    + "candidatura, partido, coligação ou governo. Sem financiamento e sem impulsionamento.",
+  "Eleições 2026, Distrito Federal, Brasília. Página independente, feita por " + AUTOR + ", "
+    + "pessoa física. Sem vínculo com candidatura, partido, coligação ou governo. Sem "
+    + "financiamento e sem impulsionamento.",
 ].filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
 await writeFile(SAIDA + "/legenda.txt", legenda + "\n");
 
+/* O Instagram corta em 2.200 caracteres, sem avisar e sem pedir confirmação —
+   o fim da legenda simplesmente não existe. E o fim daqui é a linha de
+   identificação, que a lei exige em propaganda eleitoral na internet. Perder
+   essa linha em silêncio é o pior jeito possível de estourar um limite. */
+const LIM = 2200;
+if (legenda.length > LIM) {
+  console.error("\n  ✕ A LEGENDA ESTOUROU: " + legenda.length + " caracteres, o limite é "
+    + LIM + ".");
+  console.error("  O Instagram corta o fim sem avisar — e o fim é a linha de identificação,");
+  console.error("  que a lei exige. Encurte antes de postar.\n");
+  process.exit(1);
+}
+
 /* ── 7. renderizar ─────────────────────────────────────────────────────── */
 const ALVOS = [
-  ["c1", "1-numero.png"],
-  ["cg", "2-checamos.png"],
-  ["c2", "3-manda-a-sua.png"],
+  ["c0", "1-capa.png"],
+  ["c1", "2-os-outros.png"],
+  ["cg", "3-checamos.png"],
   ["c3", "4-partidos.png"],
-  ["c4", "5-conferir.png"],
+  ["c4", "5-o-que-quer-dizer.png"],
+  ["c2", "6-manda-a-sua.png"],
+  ["c5", "7-confira.png"],
   ["story", "story.png"],
 ];
 
@@ -499,32 +627,7 @@ const ALVOS = [
    palpite, e palpite manda a pessoa rodar npm install de novo achando que
    resolve. O motivo real pode ser outro — versão de Node, instalação pela
    metade, pacote que não resolve no Windows. */
-let chromium = null;
-const errosImport = [];
-for (const pacote of ["playwright", "playwright-core"]) {
-  try { ({ chromium } = await import(pacote)); break; }
-  catch (e) { errosImport.push("  " + pacote + ": " + String(e.message).split("\n")[0]); }
-}
-
-/* Três caminhos até um navegador, do mais provável ao mais teimoso: o que o
-   Playwright baixa, o Chrome que já está na máquina (poupa 150 MB de download)
-   e um caminho apontado à mão. O primeiro que abrir, vale. */
-async function abrirNavegador() {
-  const tentativas = [
-    ["o navegador do Playwright", {}],
-    ["o Chrome instalado na máquina", { channel: "chrome" }],
-    ["o Edge instalado na máquina", { channel: "msedge" }],
-  ];
-  if (process.env.PLACAR_CHROME) {
-    tentativas.unshift(["PLACAR_CHROME", { executablePath: process.env.PLACAR_CHROME }]);
-  }
-  const erros = [];
-  for (const [nome, opcoes] of tentativas) {
-    try { return { nav: await chromium.launch(opcoes), via: nome }; }
-    catch (e) { erros.push("  " + nome + ": " + String(e.message).split("\n")[0]); }
-  }
-  return { nav: null, erros };
-}
+const { chromium, erros: errosImport } = await carregarChromium();
 
 if (!chromium) {
   console.log("Não consegui carregar o Playwright — gerei só o HTML.");
@@ -535,7 +638,7 @@ if (!chromium) {
   console.log("Se insistir, " + SAIDA + "/placar.html abre no navegador com os cinco");
   console.log("cards em tamanho real — dá para capturar a tela de cada um.");
 } else {
-  const { nav, via, erros } = await abrirNavegador();
+  const { nav, via, erros } = await abrirNavegador(chromium);
   if (!nav) {
     console.log("Não consegui abrir navegador nenhum. Gerei só o HTML.\n" + erros.join("\n"));
     console.log("\nResolve com:  npx playwright install chromium");
@@ -552,44 +655,26 @@ if (!chromium) {
        primeira versão. Num card que se chama "o silêncio não tem lado", uma
        legenda faltando não é defeito de layout, é o argumento inteiro caindo.
        Então mede antes de gravar e para, dizendo onde. */
-    const transbordos = await pagina.evaluate(() => {
-      const fora = [];
-      for (const card of document.querySelectorAll(".card")) {
-        const alvos = [card, ...card.querySelectorAll(".cresce, .lista, .barras, .met")];
-        for (const el of alvos) {
-          const sobra = el.scrollHeight - el.clientHeight;
-          const largo = el.scrollWidth - el.clientWidth;
-          if (sobra > 2 || largo > 2) {
-            fora.push({
-              card: card.id,
-              onde: el === card ? "o card inteiro" : "." + el.className.split(" ")[0],
-              altura: Math.max(0, sobra),
-              largura: Math.max(0, largo),
-            });
-          }
-        }
-      }
-      return fora;
-    });
+    /* As duas travas medem a página já renderizada, não o CSS. Um padding
+       certo no papel não impede um parágrafo de crescer uma linha e empurrar
+       o rodapé para fora — só medir de verdade pega isso. Moram no
+       ambiente.mjs porque o gerador de cards individuais usa as mesmas. */
+    const transbordos = await pagina.evaluate(MEDIR_TRANSBORDO);
+    const cortados = await pagina.evaluate(MEDIR_ZONA_SEGURA);
 
     for (const [id, nome] of ALVOS) {
       await pagina.locator("#" + id).screenshot({ path: SAIDA + "/" + nome });
     }
     await nav.close();
 
-    if (transbordos.length) {
-      console.error("\n  ✕ TRANSBORDOU — tem conteúdo cortado nas imagens:");
-      for (const t of transbordos) {
-        console.error("      " + t.card + " → " + t.onde
-          + (t.altura ? "  sobra " + t.altura + "px de altura" : "")
-          + (t.largura ? "  sobra " + t.largura + "px de largura" : ""));
-      }
-      console.error("\n  As imagens foram gravadas assim mesmo, para você ver o que ficou de fora.");
+    if (relatarProblemas(transbordos, cortados)) {
       console.error("  NÃO POSTE antes de resolver. No card de partidos, o caminho é subir");
       console.error("  MIN_PARTIDO (hoje " + MIN_PARTIDO + ") — some legenda pequena, não legenda grande.\n");
       process.exit(1);
     }
-    console.log("imagens renderizadas com " + via + ", sem transbordo.");
+
+    console.log("imagens renderizadas com " + via
+      + ", sem transbordo e dentro da zona segura do corte 1:1.");
   }
 }
 
