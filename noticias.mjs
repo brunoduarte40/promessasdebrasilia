@@ -139,17 +139,59 @@ async function main() {
 
   /* Etiqueta de TODOS, não só dos majoritários. Sem isso, um deputado só
      apareceria se caísse nos ~120 itens recentes dos feeds gerais — e nenhum
-     dos 602 caiu na primeira coleta, embora vários tenham etiqueta cheia. */
+     dos 602 caiu na primeira coleta, embora vários tenham etiqueta cheia.
+   *
+   * ── A ARMADILHA DA ETIQUETA ─────────────────────────────────────────────
+   *
+   * A URL da etiqueta é montada a partir do nome: metropoles.com/tag/<slug>.
+   * Quando o nome de urna coincide com o de uma pessoa famosa, essa URL é a
+   * etiqueta DA OUTRA PESSOA — e como o item vinha com forcarNome, ele pulava
+   * a checagem de menção e era colado no candidato sem ninguém conferir.
+   *
+   * Foi o que aconteceu com MICHEL PLATINI, candidato a distrital pelo PSOL:
+   * a página dele recebeu as manchetes do dirigente de futebol, incluindo as
+   * de punição por infração ética. Isso não é um engano engraçado — é
+   * associar o nome de um candidato a um escândalo que não é dele, na única
+   * página que promete não afirmar nada que não possa sustentar.
+   *
+   * A trava: a etiqueta só vale se pelo menos um item dela citar o DF, a
+   * política local ou a eleição. Etiqueta de futebol internacional não cita.
+   * Perder notícia legítima por excesso de rigor custa uma linha a menos numa
+   * página; deixar entrar notícia de outra pessoa custa o projeto. */
+  const MARCA_DF = /(brasilia|distrito federal|\bdf\b|ceilandia|taguatinga|samambaia|planaltina|recanto das emas|santa maria|sobradinho|guara|gama|paranoa|riacho fundo|brazlandia|itapoa|estrutural|sol nascente|vicente pires|aguas claras|camara legislativa|cldf|gdf|buriti|esplanada|eleic|candidat|deputad|senad|governador)/;
+
   console.log("\netiquetas por candidato (" + nomes.length + ", ~" + Math.ceil(nomes.length * THROTTLE / 60000) + " min):");
   let comEtiqueta = 0;
+  const homonimos = [];
   for (const [n, nome] of nomes.entries()) {
     if (n % 50 === 0) process.stdout.write("  " + n + "/" + nomes.length + "\r");
     const xml = await baixar("https://www.metropoles.com/tag/" + slug(nome) + "/feed");
     const is = parseRSS(xml);
-    if (is.length) comEtiqueta++;
+    if (!is.length) continue;
+    const daqui = is.some((i) => MARCA_DF.test(norm(i.titulo + " " + i.descricao)));
+    if (!daqui) {
+      /* a etiqueta existe e não fala do DF: é de outra pessoa com o mesmo nome */
+      homonimos.push(nome);
+      continue;
+    }
+    comEtiqueta++;
     is.forEach((i) => itens.push({ ...i, veiculo: "Metrópoles", forcarNome: nome }));
   }
   console.log("  " + comEtiqueta + " de " + nomes.length + " têm etiqueta com matéria");
+
+  if (homonimos.length) {
+    console.log("\n  ✕ ETIQUETA DE OUTRA PESSOA — descartada, e o acervo desses foi limpo:");
+    for (const nome of homonimos) {
+      const k = slug(nome);
+      const tinha = (base.por_candidato[k] || []).length;
+      delete base.por_candidato[k];
+      console.log("      " + nome + (tinha ? "  (" + tinha + " manchetes removidas)" : ""));
+    }
+    console.log("  A etiqueta existe no Metrópoles mas não fala do DF nem de eleição.");
+    console.log("  Nome de urna igual ao de gente famosa cai aqui — confira se algum");
+    console.log("  desses é candidatura de verdade que ficou de fora por excesso de rigor.\n");
+  }
+  const suspeitos = new Set(homonimos);
 
   const corte = Date.now() - JANELA_DIAS * 86400000;
   let novas = 0;
@@ -160,8 +202,14 @@ async function main() {
     const data = d.toISOString().slice(0, 10);
     const texto = norm(it.titulo + " " + it.descricao);
 
+    /* Os feeds gerais têm o mesmo buraco da etiqueta: uma matéria do Metrópoles
+       sobre o Platini do futebol menciona "Michel Platini" e casaria com o
+       candidato. A detecção já foi feita lá em cima — aqui ela é reaproveitada:
+       nome marcado como homônimo só entra se a manchete também falar do DF ou
+       da eleição. Os outros nomes continuam como estavam. */
     const alvos = it.forcarNome ? [it.forcarNome]
-      : nomes.filter((n) => mencionado(n, texto));
+      : nomes.filter((n) => mencionado(n, texto)
+          && (!suspeitos.has(n) || MARCA_DF.test(texto)));
 
     for (const nome of alvos) {
       const k = slug(nome);
