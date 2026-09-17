@@ -107,6 +107,34 @@ function mencionado(nome, texto) {
   });
 }
 
+/* ── A SEGUNDA ARMADILHA: A SEÇÃO ───────────────────────────────────────────
+ *
+ * A trava da etiqueta (mais abaixo) só reprova a etiqueta INTEIRA, e há
+ * etiqueta misturada: metropoles.com/tag/michel-platini junta o dirigente de
+ * futebol com o candidato do PSOL que é intérprete de Libras. Como a etiqueta
+ * tem item do DF, ela passa — e as manchetes da Fifa entram junto.
+ *
+ * A trava por palavra também não resolve: "Federação Francesa retira apoio à
+ * reeleição de Infantino" tem "eleic" dentro de "reeleição".
+ *
+ * O que separa de verdade é a editoria. Estas seções não publicam política do
+ * DF, e foi nelas que entrou tudo que era de outra pessoa: o Platini do
+ * futebol, a França país no candidato FRANÇA, o humorista no LUÍS MIRANDA —
+ * este último com notícia de cirurgia, que é informação de saúde colada em
+ * quem não é o paciente. Sem exceção por palavra: "reeleição" aparece em
+ * eleição de federação esportiva, e a exceção anularia a regra.
+ *
+ * Custo: se um candidato virar notícia em esportes ou em coluna de
+ * celebridade, essa manchete não aparece. É uma linha a menos numa página. */
+const SECAO_FORA = new RegExp(
+  "^/(esportes|mundo|sao-paulo|rio-de-janeiro|minas-gerais|celebridades"
+  + "|entretenimento|vida-e-estilo|gastronomia|viagem)(/|$)"
+  + "|^/colunas/(fabia-oliveira|claudia-meireles|pouca-vergonha|leo-dias)(/|$)");
+
+function secaoFora(url) {
+  try { return SECAO_FORA.test(new URL(url).pathname); } catch { return false; }
+}
+
 async function main() {
   // nomes: majoritários embutidos + deputados, se deputados.js estiver na pasta
   const nomes = [...MAJORITARIOS];
@@ -126,6 +154,24 @@ async function main() {
     new Function("window", await readFile("noticias.js", "utf8"))(g);
     Object.assign(base.por_candidato, (g.NOTICIAS || {}).por_candidato || {});
     console.log("acumulando sobre coleta anterior");
+  }
+
+  /* O acervo é cumulativo: o que entrou errado antes desta trava existir fica
+     lá para sempre se ninguém varrer. Esta varredura roda toda vez e é
+     idempotente — depois da primeira, não acha mais nada. */
+  {
+    const fora = [];
+    for (const [k, lista] of Object.entries(base.por_candidato)) {
+      const fica = lista.filter((it) => !secaoFora(it.url));
+      if (fica.length === lista.length) continue;
+      lista.filter((it) => secaoFora(it.url)).forEach((it) => fora.push([k, it.titulo]));
+      if (fica.length) base.por_candidato[k] = fica; else delete base.por_candidato[k];
+    }
+    if (fora.length) {
+      console.log("\n  ✕ SEÇÃO QUE NÃO É POLÍTICA DO DF — removidas do acervo:");
+      for (const [k, t] of fora) console.log("      " + k.padEnd(22) + "  " + t.slice(0, 66));
+      console.log("  Confira: se alguma for mesmo sobre a candidatura, me avise.\n");
+    }
   }
 
   console.log("\nfeeds gerais:");
@@ -163,8 +209,14 @@ async function main() {
   console.log("\netiquetas por candidato (" + nomes.length + ", ~" + Math.ceil(nomes.length * THROTTLE / 60000) + " min):");
   let comEtiqueta = 0;
   const homonimos = [];
+  let curtos = 0;
   for (const [n, nome] of nomes.entries()) {
     if (n % 50 === 0) process.stdout.write("  " + n + "/" + nomes.length + "\r");
+    /* A URL da etiqueta sai do nome. Nome de uma palavra e curta tem etiqueta
+       de outra coisa: /tag/franca é o país, não o candidato FRANÇA do PODE.
+       São exatamente os nomes que formasDe já recusa por menção — recusar
+       aqui também só fecha a porta que tinha ficado aberta. */
+    if (!formasDe(nome).length) { curtos++; continue; }
     const xml = await baixar("https://www.metropoles.com/tag/" + slug(nome) + "/feed");
     const is = parseRSS(xml);
     if (!is.length) continue;
@@ -177,7 +229,8 @@ async function main() {
     comEtiqueta++;
     is.forEach((i) => itens.push({ ...i, veiculo: "Metrópoles", forcarNome: nome }));
   }
-  console.log("  " + comEtiqueta + " de " + nomes.length + " têm etiqueta com matéria");
+  console.log("  " + comEtiqueta + " de " + nomes.length + " têm etiqueta com matéria"
+    + (curtos ? "  (" + curtos + " nomes curtos demais para ter etiqueta própria)" : ""));
 
   if (homonimos.length) {
     console.log("\n  ✕ ETIQUETA DE OUTRA PESSOA — descartada, e o acervo desses foi limpo:");
@@ -197,6 +250,7 @@ async function main() {
   let novas = 0;
 
   for (const it of itens) {
+    if (secaoFora(it.url)) continue;
     const d = new Date(it.pub);
     if (isNaN(d) || d.getTime() < corte) continue;
     const data = d.toISOString().slice(0, 10);
